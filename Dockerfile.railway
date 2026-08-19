@@ -11,6 +11,5 @@ ENV XUI_ENABLE_FAIL2BAN=false \
     XUI_DATA_ROOT=/data \
     XUI_FORCE_INITIAL_CREDENTIALS=true
 EXPOSE 8080
-VOLUME ["/data"]
 ENTRYPOINT ["/app/gucci/entrypoint.sh"]
 CMD []
