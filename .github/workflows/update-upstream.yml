@@ -1,0 +1,19 @@
+name: Verify pinned 3X-UI v3.4.2
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-pin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify the requested upstream panel pin
+        run: |
+          set -euo pipefail
+          test "$(tr -d '[:space:]' < UPSTREAM_VERSION)" = "v3.4.2"
+          test "$(tr -d '[:space:]' < internal/config/version)" = "3.4.2"
+          tag_sha=$(curl -fsSL https://api.github.com/repos/MHSanaei/3x-ui/git/ref/tags/v3.4.2 | jq -r '.object.sha')
+          test "$tag_sha" = "f3a57d4c57fbcae94414138de42b7ef11dc513c8"
+          grep -q 'XRAY_COMPAT_VERSION=v26.6.27' Dockerfile.railway
+          echo 'Pinned panel/core pair verified: 3X-UI v3.4.2 + Xray v26.6.27'

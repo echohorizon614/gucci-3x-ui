@@ -22,9 +22,8 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 
-import { FormProvider, useForm } from 'react-hook-form';
 import { HttpUtil, LanguageManager } from '@/utils';
-import { FormField, rhfZodValidate } from '@/components/form/rhf';
+import { antdRule } from '@/utils/zodForm';
 import { setMessageInstance } from '@/utils/messageBus';
 import { pauseAnimationsUntilLeave, useTheme } from '@/hooks/useTheme';
 import { LoginFormSchema, TwoFactorCodeSchema, type LoginFormValues } from '@/schemas/login';
@@ -49,7 +48,6 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [twoFactorEnable, setTwoFactorEnable] = useState(false);
   const [headlineIndex, setHeadlineIndex] = useState(0);
-  const methods = useForm<LoginForm>({ defaultValues: { username: '', password: '', twoFactorCode: '' } });
   const [lang, setLang] = useState<string>(() => LanguageManager.getLanguage());
 
   const headlineWords = useMemo(
@@ -175,74 +173,73 @@ export default function LoginPage() {
             ) : (
               <div className="login-card">
                 <div className="brand">
-                  <span className="brand-name">3X-UI</span>
+                  <span className="brand-name">GUCCI</span>
                   <span className="brand-accent" aria-hidden="true" />
                 </div>
                 <h2 className="welcome">
                   <b key={headlineIndex}>{headlineWords[headlineIndex]}</b>
                 </h2>
 
-                <FormProvider {...methods}>
-                  <Form
-                    layout="vertical"
-                    className="login-form"
-                    onFinish={methods.handleSubmit(onSubmit)}
+                <Form
+                  layout="vertical"
+                  className="login-form"
+                  onFinish={onSubmit}
+                  initialValues={{ username: '', password: '', twoFactorCode: '' }}
+                >
+                  <Form.Item
+                    label={t('username')}
+                    name="username"
+                    rules={[antdRule(LoginFormSchema.shape.username, t)]}
                   >
-                    <FormField
-                      name="username"
-                      label={t('username')}
-                      rules={{ validate: rhfZodValidate(LoginFormSchema.shape.username) }}
+                    <Input
+                      prefix={<UserOutlined />}
+                      autoComplete="username"
+                      size="large"
+                      placeholder={t('username')}
+                      autoFocus
+                    />
+                  </Form.Item>
+
+                  <Form.Item
+                    label={t('password')}
+                    name="password"
+                    rules={[antdRule(LoginFormSchema.shape.password, t)]}
+                  >
+                    <Input.Password
+                      prefix={<LockOutlined />}
+                      autoComplete="current-password"
+                      size="large"
+                      placeholder={t('password')}
+                    />
+                  </Form.Item>
+
+                  {twoFactorEnable && (
+                    <Form.Item
+                      label={t('twoFactorCode')}
+                      name="twoFactorCode"
+                      rules={[antdRule(TwoFactorCodeSchema, t)]}
                     >
                       <Input
-                        prefix={<UserOutlined />}
-                        autoComplete="username"
+                        prefix={<KeyOutlined />}
+                        autoComplete="one-time-code"
                         size="large"
-                        placeholder={t('username')}
-                        autoFocus
+                        placeholder={t('twoFactorCode')}
                       />
-                    </FormField>
-
-                    <FormField
-                      name="password"
-                      label={t('password')}
-                      rules={{ validate: rhfZodValidate(LoginFormSchema.shape.password) }}
-                    >
-                      <Input.Password
-                        prefix={<LockOutlined />}
-                        autoComplete="current-password"
-                        size="large"
-                        placeholder={t('password')}
-                      />
-                    </FormField>
-
-                    {twoFactorEnable && (
-                      <FormField
-                        name="twoFactorCode"
-                        label={t('twoFactorCode')}
-                        rules={{ validate: rhfZodValidate(TwoFactorCodeSchema) }}
-                      >
-                        <Input
-                          prefix={<KeyOutlined />}
-                          autoComplete="one-time-code"
-                          size="large"
-                          placeholder={t('twoFactorCode')}
-                        />
-                      </FormField>
-                    )}
-
-                    <Form.Item className="submit-row">
-                      <Button
-                        type="primary"
-                        htmlType="submit"
-                        loading={submitting}
-                        size="large"
-                        block
-                      >
-                        {t('login')}
-                      </Button>
                     </Form.Item>
-                  </Form>
-                </FormProvider>
+                  )}
+
+                  <Form.Item className="submit-row">
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      loading={submitting}
+                      size="large"
+                      block
+                    >
+                      {t('login')}
+                    </Button>
+                  </Form.Item>
+                </Form>
               </div>
             )}
           </div>
