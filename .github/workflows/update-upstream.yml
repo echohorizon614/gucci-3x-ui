@@ -1,0 +1,47 @@
+name: Update stable 3X-UI upstream
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: upstream-update
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Sync latest stable release
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest=$(curl -fsSL https://api.github.com/repos/MHSanaei/3x-ui/releases/latest | jq -r .tag_name)
+          current=$(tr -d '[:space:]' < UPSTREAM_VERSION)
+          [ -n "$latest" ] && [ "$latest" != "null" ]
+          if [ "$latest" = "$current" ]; then
+            echo "Already current: $current"
+            exit 0
+          fi
+          curl -fsSL "https://github.com/MHSanaei/3x-ui/archive/refs/tags/${latest}.tar.gz" -o /tmp/upstream.tar.gz
+          mkdir -p /tmp/upstream
+          tar -xzf /tmp/upstream.tar.gz -C /tmp/upstream --strip-components=1
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/workflows/' \
+            --exclude='gucci/' \
+            --exclude='Dockerfile.railway' \
+            --exclude='railway.toml' \
+            --exclude='UPSTREAM_VERSION' \
+            --exclude='GUCCI_RAILWAY_FA.md' \
+            /tmp/upstream/ ./
+          sed -i -E "s/^ARG XUI_VERSION=.*/ARG XUI_VERSION=${latest}/" Dockerfile.railway
+          printf '%s\n' "$latest" > UPSTREAM_VERSION
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m "chore: sync 3X-UI ${latest}"
+          git push

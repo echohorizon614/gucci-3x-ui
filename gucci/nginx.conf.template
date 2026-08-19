@@ -1,0 +1,65 @@
+worker_processes auto;
+pid /tmp/nginx.pid;
+error_log /dev/stderr warn;
+events { worker_connections 4096; }
+http {
+  include /etc/nginx/mime.types;
+  default_type application/octet-stream;
+  access_log /dev/stdout;
+  sendfile on;
+  tcp_nopush on;
+  keepalive_timeout 65;
+  client_max_body_size 100m;
+  proxy_temp_path /tmp/nginx-proxy;
+  client_body_temp_path /tmp/nginx-client;
+  map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+  server {
+    listen __PORT__ default_server;
+    listen [::]:__PORT__ default_server;
+    server_tokens off;
+    add_header X-Content-Type-Options nosniff always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+    add_header X-Frame-Options SAMEORIGIN always;
+
+    location = /healthz { access_log off; default_type text/plain; return 200 'ok\n'; }
+    location = / { root /app/gucci/landing; try_files /index.html =404; add_header Cache-Control 'no-store, max-age=0'; }
+
+    # Preserve the native 3X-UI subscription routes and formats.
+    location ~ ^/(sub|json|clash)/ {
+      proxy_pass http://127.0.0.1:2096;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /gucci/ {
+      proxy_pass http://127.0.0.1:2053;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $connection_upgrade;
+      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_read_timeout 3600s;
+      proxy_send_timeout 3600s;
+    }
+
+    # Keep upstream API/public routes available without changing 3X-UI itself.
+    location / {
+      proxy_pass http://127.0.0.1:2053;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $connection_upgrade;
+      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Real-IP $remote_addr;
+    }
+  }
+}

@@ -1,0 +1,15 @@
+# Updated automatically by .github/workflows/update-upstream.yml
+ARG XUI_VERSION=v3.6.0
+FROM ghcr.io/mhsanaei/3x-ui:${XUI_VERSION}
+USER root
+RUN apk add --no-cache nginx sqlite
+COPY gucci /app/gucci
+RUN chmod 0755 /app/gucci/entrypoint.sh
+ENV XUI_ENABLE_FAIL2BAN=false \
+    XUI_INTERNAL_PORT=2053 \
+    XUI_WEB_BASE_PATH=/gucci/ \
+    XUI_DATA_ROOT=/data
+EXPOSE 8080
+VOLUME ["/data"]
+ENTRYPOINT ["/app/gucci/entrypoint.sh"]
+CMD []
