@@ -1,24 +1,29 @@
 # GUCCI 3X-UI — Railway Edition
 
-یک پروژه کامل و Fork-ready برای اجرای پنل سنایی روی Railway. تمام لایه GUCCI، پنل `/gucci/`، صفحه معرفی، Subscription اصلی، Inbound Reality و تنظیمات ماندگار در همین Repository است.
+نسخه عمومی و Fork-ready پنل سنایی برای Railway. تمام فایل‌های لازم داخل همین Repository است و برای بالا آمدن پنل هیچ Variable یا سرویس جانبی لازم نیست.
 
-## استقرار سریع
+## راه‌اندازی
 
-1. این Repository را **Fork** یا با **Use this template** کپی کنید.
-2. در Railway گزینه **Deploy from GitHub Repo** را بزنید و همین Repository را انتخاب کنید.
-3. یک Volume با Mount Path دقیق `/data` بسازید.
-4. یک Railway Domain با Target Port دقیق `1` بسازید.
-5. یک TCP Proxy با Application Port دقیق `1234` بسازید.
-6. Region را روی EU West / Amsterdam قرار دهید.
+1. روی **Fork** یا **Use this template** بزنید.
+2. در Railway گزینه **Deploy from GitHub Repo** را انتخاب و Fork خودتان را Deploy کنید.
+3. در Networking روی **Generate Domain** بزنید و Target Port را `1` وارد کنید.
+4. صفحه اصلی دامنه، Landing تیم GUCCI است.
+5. پنل فقط با مسیر زیر باز می‌شود:
 
-هیچ Variable اجباری نیست؛ `PORT=1`، پنل `/gucci/`، ورود اولیه `gucci / gucci`، دیتابیس `/data/x-ui`، Target برابر `yahoo.com:443` و SNI اسکن‌شده `s.yimg.com` داخل Image تنظیم شده‌اند.
+```text
+https://YOUR-DOMAIN/gucci/
+```
 
-- صفحه معرفی: `https://YOUR-DOMAIN/`
-- پنل: `https://YOUR-DOMAIN/gucci/`
-- Volume: `/data`
-- TCP Proxy Application Port: `1234`
+ورود اولیه:
 
-راهنمای کامل فارسی: [`GUCCI_RAILWAY_FA.md`](GUCCI_RAILWAY_FA.md)
+```text
+Username: gucci
+Password: gucci
+```
+
+تمام پیش‌فرض‌های ضروری داخل Image قرار دارند: پنل روی پورت `1`، مسیر `/gucci/`، دیتابیس در `/data/x-ui`، Xray و Subscription اصلی 3X-UI. ساخت Volume `/data` و TCP Proxy `1234` اختیاری و بعد از بالا آمدن پنل قابل انجام است.
+
+راهنمای تکمیلی: [`GUCCI_RAILWAY_FA.md`](GUCCI_RAILWAY_FA.md)
 
 ---
 

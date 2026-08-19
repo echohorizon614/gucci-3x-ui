@@ -14,7 +14,6 @@ jobs:
         run: |
           sh -n gucci/entrypoint.sh
           sh -n gucci/bootstrap-inbound.sh
-          bash -n scripts/railway-ensure.sh
           grep -q 'ساخته شده توسط تیم' gucci/landing/index.html
           ! grep -q 'href="/gucci/"' gucci/landing/index.html
           grep -q 'ghcr.io/mhsanaei/3x-ui:' Dockerfile.railway

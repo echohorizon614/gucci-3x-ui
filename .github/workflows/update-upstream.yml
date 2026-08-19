@@ -33,7 +33,6 @@ jobs:
             --exclude='.git/' \
             --exclude='.github/workflows/' \
             --exclude='gucci/' \
-            --exclude='scripts/railway-ensure.sh' \
             --exclude='Dockerfile.railway' \
             --exclude='railway.toml' \
             --exclude='UPSTREAM_VERSION' \
