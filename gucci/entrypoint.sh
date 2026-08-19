@@ -7,7 +7,7 @@ set -eu
 PUBLIC_PORT="${GUCCI_PUBLIC_PORT:-1}"
 HEALTH_PORT="${PORT:-8080}"
 PANEL_PORT="${XUI_INTERNAL_PORT:-2053}"
-PANEL_PATH="${XUI_WEB_BASE_PATH:-/gucci/}"
+PANEL_PATH="${XUI_WEB_BASE_PATH:-/gucci/panel/}"
 INITIAL_USER="${XUI_INITIAL_USERNAME:-gucci}"
 INITIAL_PASS="${XUI_INITIAL_PASSWORD:-gucci}"
 DATA_ROOT="${XUI_DATA_ROOT:-/data}"
@@ -61,13 +61,18 @@ db_setting() {
   value=$(printf '%s' "$2" | sed "s/'/''/g")
   sqlite3 "$DB" "INSERT INTO settings(key,value) SELECT '${key}','${value}' WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key='${key}');"
 }
+db_setting_force() {
+  key=$(printf '%s' "$1" | sed "s/'/''/g")
+  value=$(printf '%s' "$2" | sed "s/'/''/g")
+  sqlite3 "$DB" "INSERT INTO settings(key,value) SELECT '${key}','${value}' WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key='${key}'); UPDATE settings SET value='${value}' WHERE key='${key}';"
+}
 if [ -f "$DB" ]; then
   db_setting subListen 127.0.0.1
   db_setting subPort 2096
   if [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
-    db_setting subURI "https://${RAILWAY_PUBLIC_DOMAIN}/sub/"
-    db_setting subJsonURI "https://${RAILWAY_PUBLIC_DOMAIN}/json/"
-    db_setting subClashURI "https://${RAILWAY_PUBLIC_DOMAIN}/clash/"
+    db_setting_force subURI "https://${RAILWAY_PUBLIC_DOMAIN}/sub/"
+    db_setting_force subJsonURI "https://${RAILWAY_PUBLIC_DOMAIN}/json/"
+    db_setting_force subClashURI "https://${RAILWAY_PUBLIC_DOMAIN}/clash/"
     db_setting subTitle "GUCCI Network"
     db_setting subSupportUrl "https://t.me/MR_GUCCI_YT"
   fi

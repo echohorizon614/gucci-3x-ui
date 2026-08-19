@@ -24,6 +24,8 @@ http {
 
     location = /healthz { access_log off; default_type text/plain; return 200 'ok\n'; }
     location = / { root /app/gucci/landing; try_files /index.html =404; add_header Cache-Control 'no-store, max-age=0'; }
+    location = /gucci { return 308 /gucci/; }
+    location = /gucci/ { root /app/gucci/landing; try_files /index.html =404; add_header Cache-Control 'no-store, max-age=0'; }
 
     # Preserve the native 3X-UI subscription routes and formats.
     location ~ ^/(sub|json|clash)/ {
@@ -36,7 +38,7 @@ http {
       proxy_set_header X-Real-IP $remote_addr;
     }
 
-    location /gucci/ {
+    location /gucci/panel/ {
       proxy_pass http://127.0.0.1:2053;
       proxy_http_version 1.1;
       proxy_set_header Host $host;
