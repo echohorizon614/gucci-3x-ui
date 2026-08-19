@@ -1,7 +1,9 @@
 #!/bin/sh
 set -eu
 
-PUBLIC_PORT="${PORT:-8080}"
+# Railway may inject its own PORT=8080 even when the generated domain targets
+# port 1. The public GUCCI gateway is intentionally fixed to application port 1.
+PUBLIC_PORT="${GUCCI_PUBLIC_PORT:-1}"
 PANEL_PORT="${XUI_INTERNAL_PORT:-2053}"
 PANEL_PATH="${XUI_WEB_BASE_PATH:-/gucci/}"
 INITIAL_USER="${XUI_INITIAL_USERNAME:-gucci}"
