@@ -20,5 +20,7 @@ jobs:
           test -s gucci/landing/assets/favicon.svg
           test $(wc -c < gucci/landing/index.html) -lt 50000
           grep -q 'ghcr.io/mhsanaei/3x-ui:' Dockerfile.railway
+          grep -q 'XRAY_COMPAT_VERSION=v26.6.27' Dockerfile.railway
+          grep -q 'b3e5902d06d6282fe53cfa2fc426058b9aeaa429b2c812e20887cd47f26d08bf' Dockerfile.railway
       - name: Build Railway image
         run: docker build -f Dockerfile.railway -t gucci-3x-ui:test .

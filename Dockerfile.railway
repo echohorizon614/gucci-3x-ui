@@ -2,7 +2,14 @@
 ARG XUI_VERSION=v3.6.0
 FROM ghcr.io/mhsanaei/3x-ui:${XUI_VERSION}
 USER root
-RUN apk add --no-cache nginx sqlite
+ARG XRAY_COMPAT_VERSION=v26.6.27
+ARG XRAY_COMPAT_SHA256=b3e5902d06d6282fe53cfa2fc426058b9aeaa429b2c812e20887cd47f26d08bf
+RUN apk add --no-cache nginx sqlite curl unzip \
+    && curl -fsSL --retry 3 -o /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${XRAY_COMPAT_VERSION}/Xray-linux-64.zip" \
+    && echo "${XRAY_COMPAT_SHA256}  /tmp/xray.zip" | sha256sum -c - \
+    && unzip -p /tmp/xray.zip xray > /app/bin/xray-linux-amd64 \
+    && chmod 0755 /app/bin/xray-linux-amd64 \
+    && rm -f /tmp/xray.zip
 COPY gucci /app/gucci
 RUN chmod 0755 /app/gucci/entrypoint.sh
 ENV GUCCI_PUBLIC_PORT=1 \
