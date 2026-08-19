@@ -15,6 +15,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - name: Sync latest stable release
         shell: bash
         run: |
@@ -39,8 +42,53 @@ jobs:
             --exclude='GUCCI_RAILWAY_FA.md' \
             --exclude='README.md' \
             /tmp/upstream/ ./
-          sed -i -E "s/^ARG XUI_VERSION=.*/ARG XUI_VERSION=${latest}/" Dockerfile.railway
           printf '%s\n' "$latest" > UPSTREAM_VERSION
+
+          # Re-apply the audited dependency floors after upstream rsync so a
+          # stable upgrade cannot silently reintroduce a known advisory.
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('frontend/package.json')
+          x = json.loads(p.read_text())
+          o = x.setdefault('overrides', {})
+          for key in ('dompurify', 'brace-expansion', 'nanoid', 'mermaid', 'postcss'):
+              o.pop(key, None)
+          o.update({
+              'brace-expansion@<2.0.0': '^1.1.18',
+              'brace-expansion@>=4.0.0 <5.0.9': '^5.0.9',
+              'dompurify@<=3.4.12': '^3.4.13',
+              'nanoid@<3.3.18': '^3.3.18',
+              'mermaid@>=11.0.0-alpha.1 <11.16.1': '^11.16.1',
+              'postcss@<=8.5.22': '^8.5.23',
+          })
+          p.write_text(json.dumps(x, indent=2) + '\n')
+          PY
+          (cd frontend && npm install --package-lock-only --ignore-scripts --no-audit --no-fund)
+          (cd frontend && npm audit --audit-level=low)
+
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('docs/pnpm-workspace.yaml')
+          s = p.read_text()
+          if 'overrides:\n' not in s:
+              s += '\noverrides:\n'
+          floors = [
+              "  'brace-expansion@<2.0.0': '^1.1.18'",
+              "  'brace-expansion@>=4.0.0 <5.0.9': '^5.0.9'",
+              "  'dompurify@<=3.4.12': '^3.4.13'",
+              "  'js-yaml@>=4.0.0 <4.3.1': '^4.3.1'",
+              "  'nanoid@<3.3.18': '^3.3.18'",
+              "  'postcss@<=8.5.22': '^8.5.23'",
+          ]
+          pos = s.index('overrides:\n') + len('overrides:\n')
+          missing = [line for line in floors if line not in s]
+          s = s[:pos] + ('\n'.join(missing) + ('\n' if missing else '')) + s[pos:]
+          p.write_text(s)
+          PY
+          (cd docs && npx -y pnpm@11.15.1 install --lockfile-only --ignore-scripts)
+          (cd docs && npx -y pnpm@11.15.1 audit --audit-level=low)
+
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A

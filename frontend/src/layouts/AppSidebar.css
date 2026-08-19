@@ -50,6 +50,16 @@
   line-height: 1.1;
 }
 
+.ant-layout-sider-collapsed .sider-brand {
+  justify-content: center;
+  padding-inline: 4px;
+}
+
+.ant-layout-sider-collapsed .brand-text {
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+
 .brand-actions {
   display: inline-flex;
   align-items: center;

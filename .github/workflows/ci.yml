@@ -20,6 +20,13 @@ jobs:
           grep -q 'href="/gucci/enter"' gucci/landing/index.html
           grep -q '/gucci-assets/gucci-bg.webp' gucci/landing/index.html
           grep -q 'location /gucci-connect/ws' gucci/nginx.conf.template
+          grep -q 'XUI_DATA_ROOT=/GUCCI' Dockerfile.railway
+          grep -q 'XUI_DB_FOLDER=/GUCCI/x-ui' Dockerfile.railway
+          grep -q 'XUI_DATA_ROOT:-/GUCCI' gucci/entrypoint.sh
+          grep -q '<span className="brand-text">GUCCI</span>' frontend/src/layouts/AppSidebar.tsx
+          grep -q '<span className="drawer-brand">GUCCI</span>' frontend/src/layouts/AppSidebar.tsx
+          grep -q '<span className="brand-name">GUCCI</span>' frontend/src/pages/login/LoginPage.tsx
+          ! grep -q '>3X-UI<' frontend/src/layouts/AppSidebar.tsx frontend/src/pages/login/LoginPage.tsx
           test -s gucci/landing/assets/gucci-bg.webp
           test -s gucci/landing/assets/favicon.svg
           test $(wc -c < gucci/landing/index.html) -lt 50000

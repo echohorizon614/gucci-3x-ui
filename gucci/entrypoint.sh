@@ -10,8 +10,27 @@ PANEL_PORT="${XUI_INTERNAL_PORT:-2053}"
 PANEL_PATH="${XUI_WEB_BASE_PATH:-/gucci/}"
 INITIAL_USER="${XUI_INITIAL_USERNAME:-gucci}"
 INITIAL_PASS="${XUI_INITIAL_PASSWORD:-gucci}"
-DATA_ROOT="${XUI_DATA_ROOT:-/data}"
+DATA_ROOT="${XUI_DATA_ROOT:-/GUCCI}"
 DB_FOLDER="${XUI_DB_FOLDER:-$DATA_ROOT/x-ui}"
+
+# Railway's actual mounted-volume path is authoritative. This prevents a stale
+# service Variable from ever redirecting the database to ephemeral storage when
+# the volume mount is renamed or reattached.
+if [ -n "${RAILWAY_VOLUME_MOUNT_PATH:-}" ]; then
+  DATA_ROOT="$RAILWAY_VOLUME_MOUNT_PATH"
+  DB_FOLDER="$DATA_ROOT/x-ui"
+fi
+
+# Zero-loss transition for an existing Railway volume that is still mounted at
+# /data. The first image using /GUCCI continues reading the old mount; after the
+# same volume is remounted at /GUCCI, its existing x-ui directory is found there
+# automatically. No database copy, reset, or temporary storage is involved.
+if [ "$DATA_ROOT" = "/GUCCI" ] && [ ! -f "$DB_FOLDER/x-ui.db" ] && [ -f /data/x-ui/x-ui.db ]; then
+  DATA_ROOT=/data
+  DB_FOLDER=/data/x-ui
+  echo 'Persistent volume is using legacy mount /data; retaining it without migration.'
+fi
+export XUI_DATA_ROOT="$DATA_ROOT"
 export XUI_DB_FOLDER="$DB_FOLDER"
 
 case "$PUBLIC_PORT:$PANEL_PORT" in *[!0-9:]*|:*) echo 'Invalid port configuration' >&2; exit 1;; esac
@@ -30,6 +49,7 @@ persist_dir() {
 }
 
 mkdir -p "$DATA_ROOT" "$DB_FOLDER" /tmp/nginx-proxy /tmp/nginx-client /run/nginx
+echo "Persistent data root: ${DATA_ROOT}"
 # 3X-UI writes SQLite directly into the Railway-mounted directory. We do not
 # symlink /etc/x-ui because the upstream image declares it as a Docker VOLUME,
 # which can become an ephemeral mount and discard panel changes on redeploy.

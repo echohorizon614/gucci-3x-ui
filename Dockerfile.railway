@@ -58,10 +58,10 @@ ENV XUI_IN_DOCKER=true \
     XUI_DB_TYPE=sqlite \
     XUI_DB_DSN="" \
     GUCCI_PUBLIC_PORT=1 \
-    XUI_DB_FOLDER=/data/x-ui \
+    XUI_DB_FOLDER=/GUCCI/x-ui \
     XUI_INTERNAL_PORT=2053 \
     XUI_WEB_BASE_PATH=/gucci/ \
-    XUI_DATA_ROOT=/data \
+    XUI_DATA_ROOT=/GUCCI \
     XUI_FORCE_INITIAL_CREDENTIALS=false
 
 EXPOSE 1 8080

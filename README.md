@@ -26,7 +26,7 @@ Password: gucci
 
 برای سازگاری بیشتر با Xray، Mihomo/Clash Meta، sing-box و کلاینت‌های قدیمی‌تر، Image از Xray-core `v26.6.27` استفاده می‌کند؛ این نسخه پیش از محدودیت پیش‌فرض جدید REALITY است.
 
-تمام پیش‌فرض‌های ضروری داخل Image قرار دارند: پنل روی پورت `1`، Landing و ورودی کنترل‌شده پنل روی همان `/gucci/`، ورود اولیه `gucci / gucci`، دیتابیس در `/data/x-ui`، Xray و Subscription اصلی 3X-UI. بعد از باز شدن پنل، تمام تنظیمات شبکه و Inboundها در اختیار خود مدیر است.
+تمام پیش‌فرض‌های ضروری داخل Image قرار دارند: پنل روی پورت `1`، Landing و ورودی کنترل‌شده پنل روی همان `/gucci/`، ورود اولیه `gucci / gucci`، دیتابیس دائمی در `/GUCCI/x-ui`، Xray و Subscription اصلی 3X-UI. بعد از باز شدن پنل، تمام تنظیمات شبکه و Inboundها در اختیار خود مدیر است. برای ماندگاری واقعی، Railway Volume باید دقیقاً روی `/GUCCI` Mount شود.
 
 برای شبکه‌ها یا کلاینت‌هایی که REALITY را پشتیبانی نمی‌کنند، Gateway مسیر `/gucci-connect/ws` را به پورت داخلی `1235` آماده کرده است؛ مدیر می‌تواند داخل پنل یک VLESS WebSocket بدون TLS داخلی بسازد و لینک بیرونی را با TLS دامنه Railway روی پورت 443 ارائه کند.
 
@@ -184,7 +184,8 @@ docker run -d --cap-add=NET_ADMIN --cap-add=NET_RAW ... ghcr.io/mhsanaei/3x-ui
 | --- | --- | --- |
 | `XUI_DB_TYPE` | Database backend: `sqlite` or `postgres` | `sqlite` |
 | `XUI_DB_DSN` | PostgreSQL connection string (when `XUI_DB_TYPE=postgres`) | — |
-| `XUI_DB_FOLDER` | Directory for the SQLite database file | `/etc/x-ui` |
+| `XUI_DATA_ROOT` | Persistent Railway volume root | `/GUCCI` |
+| `XUI_DB_FOLDER` | Directory for the SQLite database file | `/GUCCI/x-ui` |
 | `XUI_DB_MAX_OPEN_CONNS` | Maximum open connections (PostgreSQL pool) | — |
 | `XUI_DB_MAX_IDLE_CONNS` | Maximum idle connections (PostgreSQL pool) | — |
 | `XUI_INIT_WEB_BASE_PATH` | The initial URI path for the web panel | `/` |
