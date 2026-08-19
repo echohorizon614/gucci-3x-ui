@@ -60,7 +60,7 @@ Workflow زمان‌بندی‌شده هر روز آخرین Release پایدا�
 
 Nginx مسیر `/gucci-connect/ws` را به `127.0.0.1:1235` Forward می‌کند. برای دستگاه‌هایی که Reality ندارند، یک inbound از نوع VLESS + WebSocket + security none روی پورت داخلی `1235` و همین path بسازید؛ لینک بیرونی باید از دامنه Railway، پورت `443` و `security=tls` استفاده کند.
 
-برای اینکه یک Subscription هم Reality سریع و هم fallback عمومی را تحویل دهد، یک Client روی هر دو inbound باید `subId` یکسان داشته باشد. UUIDها می‌توانند متفاوت باقی بمانند. به این ترتیب کلاینت‌های Xray/Mihomo می‌توانند Reality و دستگاه‌های sing-box یا شبکه‌های محدودکننده پروفایل HTTPS/443 را انتخاب کنند، بدون اینکه Subscription قدیمی حذف شود.
+برای اینکه یک Subscription هم Reality سریع و هم fallback عمومی را تحویل دهد، یک Client روی هر دو inbound باید `subId` یکسان داشته باشد. UUIDها می‌توانند متفاوت باقی بمانند. در production پروفایل عمومی HTTPS/443 با `subSortIndex=1` قبل از REALITY با `subSortIndex=2` ارائه می‌شود تا Clientهای بیشتری در اولین انتخاب پاسخ بگیرند؛ هر دو همچنان قابل انتخاب‌اند و Subscription قدیمی حذف نمی‌شود. پاسخ‌های `/sub/`، `/json/` و `/clash/` نیز `no-store` هستند و فاصله Refresh پیشنهادی production یک ساعت است.
 
 ## Health Check اتصال
 
