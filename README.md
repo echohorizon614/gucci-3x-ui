@@ -21,7 +21,7 @@ Username: gucci
 Password: gucci
 ```
 
-تمام پیش‌فرض‌های ضروری داخل Image قرار دارند: پنل روی پورت `1`، مسیر `/gucci/`، دیتابیس در `/data/x-ui`، Xray و Subscription اصلی 3X-UI. ساخت Volume `/data` و TCP Proxy `1234` اختیاری و بعد از بالا آمدن پنل قابل انجام است.
+تمام پیش‌فرض‌های ضروری داخل Image قرار دارند: پنل روی پورت `1`، مسیر `/gucci/`، ورود اولیه `gucci / gucci`، دیتابیس در `/data/x-ui`، Xray و Subscription اصلی 3X-UI. بعد از باز شدن پنل، تمام تنظیمات شبکه و Inboundها در اختیار خود مدیر است.
 
 راهنمای تکمیلی: [`GUCCI_RAILWAY_FA.md`](GUCCI_RAILWAY_FA.md)
 

@@ -2,7 +2,7 @@
 ARG XUI_VERSION=v3.6.0
 FROM ghcr.io/mhsanaei/3x-ui:${XUI_VERSION}
 USER root
-RUN apk add --no-cache nginx sqlite jq
+RUN apk add --no-cache nginx sqlite
 COPY gucci /app/gucci
 RUN chmod 0755 /app/gucci/entrypoint.sh
 ENV GUCCI_PUBLIC_PORT=1 \
@@ -11,11 +11,7 @@ ENV GUCCI_PUBLIC_PORT=1 \
     XUI_INTERNAL_PORT=2053 \
     XUI_WEB_BASE_PATH=/gucci/ \
     XUI_DATA_ROOT=/data \
-    XUI_FORCE_INITIAL_CREDENTIALS=false \
-    XUI_BOOTSTRAP_INBOUND=true \
-    GUCCI_INBOUND_PORT=1234 \
-    GUCCI_REALITY_TARGET=yahoo.com:443 \
-    GUCCI_REALITY_SNI=s.yimg.com
+    XUI_FORCE_INITIAL_CREDENTIALS=false
 EXPOSE 1 8080
 ENTRYPOINT ["/app/gucci/entrypoint.sh"]
 CMD []
