@@ -24,7 +24,7 @@ Username: gucci
 Password: gucci
 ```
 
-برای سازگاری بیشتر با Xray، Mihomo/Clash Meta، sing-box و کلاینت‌های قدیمی‌تر، Image از Xray-core `v26.6.27` استفاده می‌کند؛ این نسخه پیش از محدودیت پیش‌فرض جدید REALITY است.
+برای سازگاری بیشتر با Xray، Mihomo/Clash Meta، sing-box و کلاینت‌های قدیمی‌تر، Image از Xray-core `v26.6.27` استفاده می‌کند؛ این نسخه پیش از محدودیت پیش‌فرض جدید REALITY است. گزارش فنی و تست A/B کامل در [`COMPATIBILITY_3_4_2_TO_3_6_0.md`](COMPATIBILITY_3_4_2_TO_3_6_0.md) ثبت شده است.
 
 تمام پیش‌فرض‌های ضروری داخل Image قرار دارند: پنل روی پورت `1`، Landing و ورودی کنترل‌شده پنل روی همان `/gucci/`، ورود اولیه `gucci / gucci`، دیتابیس دائمی در `/GUCCI/x-ui`، Xray و Subscription اصلی 3X-UI. بعد از باز شدن پنل، تمام تنظیمات شبکه و Inboundها در اختیار خود مدیر است. برای ماندگاری واقعی، Railway Volume باید دقیقاً روی `/GUCCI` Mount شود.
 

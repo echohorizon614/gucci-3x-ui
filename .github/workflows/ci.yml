@@ -19,6 +19,7 @@ jobs:
           sh -n gucci/healthcheck.sh
           grep -q 'try_files /gucci-health-ok =503' gucci/nginx.conf.template
           grep -q 'GUCCI_HEALTH_TCP_PORTS' gucci/healthcheck.sh
+          grep -q "minClientVer', '1.0.0'" gucci/entrypoint.sh
           grep -q 'ساخته شده توسط تیم' gucci/landing/index.html
           grep -q 'href="/gucci/enter"' gucci/landing/index.html
           grep -q '/gucci-assets/gucci-bg.webp' gucci/landing/index.html
@@ -46,3 +47,6 @@ jobs:
         run: npx -y pnpm@11.15.1 audit --audit-level=low
       - name: Build Railway image from full source
         run: docker build -f Dockerfile.railway -t gucci-3x-ui:test .
+      - name: Verify the v3.4.2-compatible runtime core
+        run: |
+          docker run --rm --entrypoint /app/bin/xray-linux-amd64 gucci-3x-ui:test version | grep -q 'Xray 26.6.27'

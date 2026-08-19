@@ -73,6 +73,27 @@ else
   /app/x-ui setting -port "$PANEL_PORT" -webBasePath "$PANEL_PATH" -listenIP 127.0.0.1
 fi
 
+# Xray 26.7.x changed an empty REALITY minClientVer from "no floor" (the
+# v3.4.2/26.6.27 behaviour) to an implicit 26.3.27 floor. Preserve the older,
+# broadly-compatible semantic explicitly without overwriting an administrator's
+# deliberate non-empty value. This also protects imported legacy inbounds if a
+# future core update is attempted.
+if [ -f "$DB" ]; then
+  REALITY_NORMALIZED=$(sqlite3 "$DB" "
+    UPDATE inbounds
+       SET stream_settings = json_set(stream_settings, '$.realitySettings.minClientVer', '1.0.0')
+     WHERE json_valid(stream_settings)
+       AND json_extract(stream_settings, '$.security') = 'reality'
+       AND (
+         json_type(stream_settings, '$.realitySettings.minClientVer') IS NULL
+         OR trim(CAST(json_extract(stream_settings, '$.realitySettings.minClientVer') AS TEXT)) = ''
+       );
+    SELECT changes();")
+  if [ "${REALITY_NORMALIZED:-0}" -gt 0 ]; then
+    echo "Normalized ${REALITY_NORMALIZED} legacy REALITY inbound(s) to minClientVer 1.0.0"
+  fi
+fi
+
 # Native subscription endpoints stay untouched; only their public reverse-proxy
 # URI is set so links generated inside 3X-UI use the Railway HTTPS domain.
 # Factory defaults may not have a physical row yet, so this is a real upsert.
