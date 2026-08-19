@@ -10,6 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
       - name: Validate scripts and branding
         run: |
           sh -n gucci/entrypoint.sh
@@ -27,5 +30,8 @@ jobs:
       - name: Audit frontend dependencies
         working-directory: frontend
         run: npm audit --audit-level=low
+      - name: Audit documentation dependencies
+        working-directory: docs
+        run: npx -y pnpm@11.15.1 audit --audit-level=low
       - name: Build Railway image from full source
         run: docker build -f Dockerfile.railway -t gucci-3x-ui:test .
