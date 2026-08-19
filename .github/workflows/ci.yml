@@ -17,6 +17,7 @@ jobs:
           grep -q 'href="/gucci/enter"' gucci/landing/index.html
           grep -q '/gucci-assets/gucci-bg.webp' gucci/landing/index.html
           test -s gucci/landing/assets/gucci-bg.webp
+          test -s gucci/landing/assets/favicon.svg
           test $(wc -c < gucci/landing/index.html) -lt 50000
           grep -q 'ghcr.io/mhsanaei/3x-ui:' Dockerfile.railway
       - name: Build Railway image
