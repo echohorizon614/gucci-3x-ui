@@ -11,7 +11,7 @@ common=(--project "$PROJECT_ID" --environment "$ENVIRONMENT" --service "$SERVICE
 "${RW[@]}" variable set --service "$SERVICE_ID" --skip-deploys --json \
   'PORT=1' 'XUI_INTERNAL_PORT=2053' 'XUI_WEB_BASE_PATH=/gucci/' \
   'XUI_INITIAL_USERNAME=gucci' 'XUI_INITIAL_PASSWORD=gucci' 'XUI_FORCE_INITIAL_CREDENTIALS=false' \
-  'XUI_DATA_ROOT=/data' 'XUI_DB_FOLDER=/etc/x-ui' 'XUI_DB_TYPE=sqlite' \
+  'XUI_DATA_ROOT=/data' 'XUI_DB_FOLDER=/data/x-ui' 'XUI_DB_TYPE=sqlite' \
   'XUI_ENABLE_FAIL2BAN=true' 'XUI_BOOTSTRAP_INBOUND=true' \
   'GUCCI_INBOUND_PORT=1234' 'GUCCI_REALITY_SNI=play.google.com' \
   'XRAY_VMESS_AEAD_FORCED=false' 'TZ=Asia/Tehran' >/dev/null

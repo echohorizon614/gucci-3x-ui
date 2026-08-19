@@ -6,6 +6,7 @@ RUN apk add --no-cache nginx sqlite jq
 COPY gucci /app/gucci
 RUN chmod 0755 /app/gucci/entrypoint.sh
 ENV XUI_ENABLE_FAIL2BAN=true \
+    XUI_DB_FOLDER=/data/x-ui \
     XUI_INTERNAL_PORT=2053 \
     XUI_WEB_BASE_PATH=/gucci/ \
     XUI_DATA_ROOT=/data \

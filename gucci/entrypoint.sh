@@ -7,6 +7,8 @@ PANEL_PATH="${XUI_WEB_BASE_PATH:-/gucci/}"
 INITIAL_USER="${XUI_INITIAL_USERNAME:-gucci}"
 INITIAL_PASS="${XUI_INITIAL_PASSWORD:-gucci}"
 DATA_ROOT="${XUI_DATA_ROOT:-/data}"
+DB_FOLDER="${XUI_DB_FOLDER:-$DATA_ROOT/x-ui}"
+export XUI_DB_FOLDER="$DB_FOLDER"
 
 case "$PUBLIC_PORT:$PANEL_PORT" in *[!0-9:]*|:*) echo 'Invalid port configuration' >&2; exit 1;; esac
 case "$PANEL_PATH" in /*/) ;; *) echo 'XUI_WEB_BASE_PATH must start and end with /' >&2; exit 1;; esac
@@ -23,19 +25,18 @@ persist_dir() {
   fi
 }
 
-mkdir -p "$DATA_ROOT" /tmp/nginx-proxy /tmp/nginx-client /run/nginx
-# One-time migration for an existing Railway volume that was previously mounted
-# directly at /etc/x-ui. Moving the mount to /data preserves the old database.
-if [ -f "$DATA_ROOT/x-ui.db" ] && [ ! -f "$DATA_ROOT/x-ui/x-ui.db" ]; then
-  mkdir -p "$DATA_ROOT/x-ui"
-  find "$DATA_ROOT" -maxdepth 1 -type f -exec mv {} "$DATA_ROOT/x-ui/" \;
+mkdir -p "$DATA_ROOT" "$DB_FOLDER" /tmp/nginx-proxy /tmp/nginx-client /run/nginx
+# 3X-UI writes SQLite directly into the Railway-mounted directory. We do not
+# symlink /etc/x-ui because the upstream image declares it as a Docker VOLUME,
+# which can become an ephemeral mount and discard panel changes on redeploy.
+if [ -f "$DATA_ROOT/x-ui.db" ] && [ ! -f "$DB_FOLDER/x-ui.db" ]; then
+  mv "$DATA_ROOT/x-ui.db" "$DB_FOLDER/x-ui.db"
 fi
-persist_dir /etc/x-ui "$DATA_ROOT/x-ui"
 persist_dir /root/cert "$DATA_ROOT/cert"
 persist_dir /root/.acme.sh "$DATA_ROOT/acme"
 persist_dir /var/log/x-ui "$DATA_ROOT/log"
 
-DB=/etc/x-ui/x-ui.db
+DB="$DB_FOLDER/x-ui.db"
 FIRST_BOOT=false
 [ -f "$DB" ] || FIRST_BOOT=true
 

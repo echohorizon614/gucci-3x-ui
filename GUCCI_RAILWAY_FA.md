@@ -23,7 +23,7 @@
 
 Entrypoint پوشه‌های زیر را داخل همان Volume نگه می‌دارد:
 
-- `/data/x-ui` — دیتابیس SQLite، کاربران، inboundها و تمام تنظیمات
+- `/data/x-ui` — مسیر مستقیم دیتابیس SQLite، کاربران، inboundها و تمام تنظیمات (بدون symlink موقت)
 - `/data/cert` — گواهی‌ها
 - `/data/acme` — وضعیت تمدید گواهی
 - `/data/log` — لاگ‌های پنل
