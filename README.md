@@ -1,4 +1,26 @@
-> **GUCCI Railway Edition:** این Private mirror، سورس کامل MHSanaei/3x-ui را همراه با Landing اختصاصی GUCCI، مسیر `/gucci/`، نگه‌داری کامل روی Volume `/data` و به‌روزرسانی خودکار Release پایدار ارائه می‌کند. راهنمای فارسی: [`GUCCI_RAILWAY_FA.md`](GUCCI_RAILWAY_FA.md)
+# GUCCI 3X-UI — Railway Edition
+
+یک پروژه کامل و Fork-ready برای اجرای پنل سنایی روی Railway. تمام لایه GUCCI، پنل `/gucci/`، صفحه معرفی، Subscription اصلی، Inbound Reality و تنظیمات ماندگار در همین Repository است.
+
+## استقرار سریع
+
+1. این Repository را **Fork** یا با **Use this template** کپی کنید.
+2. در Railway گزینه **Deploy from GitHub Repo** را بزنید و همین Repository را انتخاب کنید.
+3. یک Volume با Mount Path دقیق `/data` بسازید.
+4. یک Railway Domain با Target Port دقیق `1` بسازید.
+5. یک TCP Proxy با Application Port دقیق `1234` بسازید.
+6. Region را روی EU West / Amsterdam قرار دهید.
+
+هیچ Variable اجباری نیست؛ `PORT=1`، پنل `/gucci/`، ورود اولیه `gucci / gucci`، دیتابیس `/data/x-ui`، Target برابر `yahoo.com:443` و SNI اسکن‌شده `s.yimg.com` داخل Image تنظیم شده‌اند.
+
+- صفحه معرفی: `https://YOUR-DOMAIN/`
+- پنل: `https://YOUR-DOMAIN/gucci/`
+- Volume: `/data`
+- TCP Proxy Application Port: `1234`
+
+راهنمای کامل فارسی: [`GUCCI_RAILWAY_FA.md`](GUCCI_RAILWAY_FA.md)
+
+---
 
 [English](/README.md) | [فارسی](/README.fa_IR.md) | [العربية](/README.ar_EG.md) | [中文](/README.zh_CN.md) | [Español](/README.es_ES.md) | [Русский](/README.ru_RU.md) | [Türkçe](/README.tr_TR.md)
 

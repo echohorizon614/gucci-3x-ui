@@ -1,7 +1,7 @@
 name: GUCCI Railway CI
 on:
   push:
-    branches: [main]
+    branches: [railway]
   pull_request:
 permissions:
   contents: read

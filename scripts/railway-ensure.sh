@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 : "${RAILWAY_API_TOKEN:?RAILWAY_API_TOKEN is required}"
-PROJECT_ID="${GUCCI_RAILWAY_PROJECT_ID:-1c311e7d-87d7-408f-8e9f-b855647a0e6d}"
-SERVICE_ID="${GUCCI_RAILWAY_SERVICE_ID:-feb2269b-4dab-448b-8df5-eed2657eae56}"
+PROJECT_ID="${GUCCI_RAILWAY_PROJECT_ID:?Set the GitHub Actions variable RAILWAY_PROJECT_ID}"
+SERVICE_ID="${GUCCI_RAILWAY_SERVICE_ID:?Set the GitHub Actions variable RAILWAY_SERVICE_ID}"
 ENVIRONMENT="${GUCCI_RAILWAY_ENVIRONMENT:-production}"
 RW=(npx -y @railway/cli@latest)
 common=(--project "$PROJECT_ID" --environment "$ENVIRONMENT" --service "$SERVICE_ID")

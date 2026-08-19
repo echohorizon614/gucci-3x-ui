@@ -38,6 +38,7 @@ jobs:
             --exclude='railway.toml' \
             --exclude='UPSTREAM_VERSION' \
             --exclude='GUCCI_RAILWAY_FA.md' \
+            --exclude='README.md' \
             /tmp/upstream/ ./
           sed -i -E "s/^ARG XUI_VERSION=.*/ARG XUI_VERSION=${latest}/" Dockerfile.railway
           printf '%s\n' "$latest" > UPSTREAM_VERSION

@@ -1,7 +1,5 @@
 name: Enforce GUCCI Railway networking
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
