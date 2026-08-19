@@ -13,7 +13,7 @@ common=(--project "$PROJECT_ID" --environment "$ENVIRONMENT" --service "$SERVICE
   'XUI_INITIAL_USERNAME=gucci' 'XUI_INITIAL_PASSWORD=gucci' 'XUI_FORCE_INITIAL_CREDENTIALS=false' \
   'XUI_DATA_ROOT=/data' 'XUI_DB_FOLDER=/data/x-ui' 'XUI_DB_TYPE=sqlite' \
   'XUI_ENABLE_FAIL2BAN=true' 'XUI_BOOTSTRAP_INBOUND=true' \
-  'GUCCI_INBOUND_PORT=1234' 'GUCCI_REALITY_SNI=play.google.com' \
+  'GUCCI_INBOUND_PORT=1234' 'GUCCI_REALITY_TARGET=yahoo.com:443' 'GUCCI_REALITY_SNI=s.yimg.com' \
   'XRAY_VMESS_AEAD_FORCED=false' 'TZ=Asia/Tehran' >/dev/null
 
 # Keep exactly one Railway TCP proxy, always targeting Xray application port 1234.

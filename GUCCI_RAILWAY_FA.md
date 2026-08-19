@@ -67,7 +67,8 @@ Workflow `railway-ensure.yml` در هر Push این وضعیت را enforce می
 - دامنه عمومی روی Application Port `1`
 - دقیقاً یک TCP Proxy روی Application Port `1234` و حذف Proxyهای پورت دیگر
 - Inbound بومی VLESS Reality روی `1234`
-- فقط `play.google.com` به‌عنوان Reality SNI/target
+- Reality target ثابت `yahoo.com:443`
+- SNI اسکن‌شده و سریع `s.yimg.com` (رتبه اول اسکن Native پنل)
 - Host override همه کاربران روی endpoint همان TCP Proxy
 - IP-limit UI فعال (3X-UI v3.6.0 از Online Stats API استفاده می‌کند)
 - Region فقط EU West آمستردام/هلند

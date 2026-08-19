@@ -9,7 +9,8 @@ BASE="http://127.0.0.1:${PANEL_PORT}${PANEL_PATH}"
 COOKIE=/tmp/gucci-bootstrap-cookie
 CSRF_JSON=/tmp/gucci-bootstrap-csrf
 INBOUND_PORT="${GUCCI_INBOUND_PORT:-1234}"
-REALITY_SNI="${GUCCI_REALITY_SNI:-play.google.com}"
+REALITY_TARGET="${GUCCI_REALITY_TARGET:-yahoo.com:443}"
+REALITY_SNI="${GUCCI_REALITY_SNI:-s.yimg.com}"
 PROXY_DOMAIN="${RAILWAY_TCP_PROXY_DOMAIN:-}"
 PROXY_PORT="${RAILWAY_TCP_PROXY_PORT:-}"
 ADMIN_USER="${XUI_INITIAL_USERNAME:-gucci}"
@@ -37,13 +38,13 @@ INBOUND=$(printf '%s' "$LIST" | jq -c --argjson p "$INBOUND_PORT" '.obj[]? | sel
 if [ -n "$INBOUND" ]; then
   ID=$(printf '%s' "$INBOUND" | jq -r '.id')
   PAYLOAD=$(printf '%s' "$INBOUND" | jq -c \
-    --arg sni "$REALITY_SNI" --arg proxy "$PROXY_DOMAIN" --argjson p "$INBOUND_PORT" '
+    --arg target "$REALITY_TARGET" --arg sni "$REALITY_SNI" --arg proxy "$PROXY_DOMAIN" --argjson p "$INBOUND_PORT" '
       .remark="GUCCI-REALITY-TCP-1234-NL" |
       .enable=true | .listen="" | .port=$p | .protocol="vless" |
       .shareAddrStrategy="listen" | .shareAddr=$proxy |
       .settings.clients=((.settings.clients // []) | map(.limitIp=(.limitIp // 0))) |
       .streamSettings.network="tcp" | .streamSettings.security="reality" |
-      .streamSettings.realitySettings.target=($sni+":443") |
+      .streamSettings.realitySettings.target=$target |
       .streamSettings.realitySettings.serverNames=[$sni] |
       .streamSettings.realitySettings.settings.serverName=$sni |
       del(.clientStats,.fallbackParent)
@@ -59,11 +60,11 @@ else
   SID=$(openssl rand -hex 8)
   SUBID=$(openssl rand -hex 8)
   [ -n "$PRIVATE" ] && [ -n "$PUBLIC" ] && [ -n "$UUID" ]
-  PAYLOAD=$(jq -nc --arg sni "$REALITY_SNI" --arg proxy "$PROXY_DOMAIN" --arg priv "$PRIVATE" --arg pub "$PUBLIC" --arg uuid "$UUID" --arg sid "$SID" --arg sub "$SUBID" --argjson p "$INBOUND_PORT" '
+  PAYLOAD=$(jq -nc --arg target "$REALITY_TARGET" --arg sni "$REALITY_SNI" --arg proxy "$PROXY_DOMAIN" --arg priv "$PRIVATE" --arg pub "$PUBLIC" --arg uuid "$UUID" --arg sid "$SID" --arg sub "$SUBID" --argjson p "$INBOUND_PORT" '
     {up:0,down:0,total:0,remark:"GUCCI-REALITY-TCP-1234-NL",enable:true,expiryTime:0,trafficReset:"never",trafficResetDay:1,
      listen:"",port:$p,protocol:"vless",tag:("in-"+($p|tostring)+"-tcp"),shareAddrStrategy:"listen",shareAddr:$proxy,
      settings:{clients:[{id:$uuid,flow:"xtls-rprx-vision",email:"gucci-user",limitIp:0,totalGB:0,expiryTime:0,enable:true,tgId:0,subId:$sub,group:"",comment:"",reset:0}],decryption:"none",fallbacks:[]},
-     streamSettings:{network:"tcp",security:"reality",externalProxy:[],tcpSettings:{acceptProxyProtocol:false,header:{type:"none"}},realitySettings:{show:false,xver:0,target:($sni+":443"),serverNames:[$sni],privateKey:$priv,minClientVer:"",maxClientVer:"",maxTimediff:0,shortIds:[$sid],mldsa65Seed:"",settings:{publicKey:$pub,fingerprint:"chrome",serverName:$sni,spiderX:"/",mldsa65Verify:""}}},
+     streamSettings:{network:"tcp",security:"reality",externalProxy:[],tcpSettings:{acceptProxyProtocol:false,header:{type:"none"}},realitySettings:{show:false,xver:0,target:$target,serverNames:[$sni],privateKey:$priv,minClientVer:"",maxClientVer:"",maxTimediff:0,shortIds:[$sid],mldsa65Seed:"",settings:{publicKey:$pub,fingerprint:"chrome",serverName:$sni,spiderX:"/",mldsa65Verify:""}}},
      sniffing:{enabled:true,destOverride:["http","tls","quic"],metadataOnly:false,routeOnly:false}}
   ')
   RESULT=$(api_post /panel/api/inbounds/add "$PAYLOAD")
@@ -94,4 +95,4 @@ fi
 
 api_post /panel/api/server/restartXrayService '{}' >/dev/null
 rm -f "$COOKIE" "$CSRF_JSON"
-echo "GUCCI bootstrap: VLESS Reality TCP ${INBOUND_PORT}, SNI ${REALITY_SNI}, IP-limit UI enabled"
+echo "GUCCI bootstrap: VLESS Reality TCP ${INBOUND_PORT}, target ${REALITY_TARGET}, scanned SNI ${REALITY_SNI}, IP-limit UI enabled"
