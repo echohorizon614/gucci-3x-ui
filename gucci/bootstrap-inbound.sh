@@ -62,7 +62,7 @@ else
   PAYLOAD=$(jq -nc --arg sni "$REALITY_SNI" --arg proxy "$PROXY_DOMAIN" --arg priv "$PRIVATE" --arg pub "$PUBLIC" --arg uuid "$UUID" --arg sid "$SID" --arg sub "$SUBID" --argjson p "$INBOUND_PORT" '
     {up:0,down:0,total:0,remark:"GUCCI-REALITY-TCP-1234-NL",enable:true,expiryTime:0,trafficReset:"never",trafficResetDay:1,
      listen:"",port:$p,protocol:"vless",tag:("in-"+($p|tostring)+"-tcp"),shareAddrStrategy:"listen",shareAddr:$proxy,
-     settings:{clients:[{id:$uuid,flow:"xtls-rprx-vision",email:"gucci-user",limitIp:0,totalGB:0,expiryTime:0,enable:true,tgId:"",subId:$sub,reset:0}],decryption:"none",fallbacks:[]},
+     settings:{clients:[{id:$uuid,flow:"xtls-rprx-vision",email:"gucci-user",limitIp:0,totalGB:0,expiryTime:0,enable:true,tgId:0,subId:$sub,group:"",comment:"",reset:0}],decryption:"none",fallbacks:[]},
      streamSettings:{network:"tcp",security:"reality",externalProxy:[],tcpSettings:{acceptProxyProtocol:false,header:{type:"none"}},realitySettings:{show:false,xver:0,target:($sni+":443"),serverNames:[$sni],privateKey:$priv,minClientVer:"",maxClientVer:"",maxTimediff:0,shortIds:[$sid],mldsa65Seed:"",settings:{publicKey:$pub,fingerprint:"chrome",serverName:$sni,spiderX:"/",mldsa65Verify:""}}},
      sniffing:{enabled:true,destOverride:["http","tls","quic"],metadataOnly:false,routeOnly:false}}
   ')
