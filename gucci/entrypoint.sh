@@ -82,8 +82,12 @@ export XUI_ENABLE_FAIL2BAN="${XUI_ENABLE_FAIL2BAN:-false}"
 # if x-ui exits, this script exits and Railway restarts the service.
 /app/DockerEntrypoint.sh &
 XUI_PID=$!
+/app/gucci/bootstrap-inbound.sh &
+BOOTSTRAP_PID=$!
+trap 'kill "$NGINX_PID" "$BOOTSTRAP_PID" 2>/dev/null || true' INT TERM EXIT
 wait "$XUI_PID"
 STATUS=$?
-kill "$NGINX_PID" 2>/dev/null || true
+kill "$NGINX_PID" "$BOOTSTRAP_PID" 2>/dev/null || true
 wait "$NGINX_PID" 2>/dev/null || true
+wait "$BOOTSTRAP_PID" 2>/dev/null || true
 exit "$STATUS"

@@ -59,3 +59,15 @@ Workflow زمان‌بندی‌شده هر روز آخرین Release پایدا�
 ## محدودیت Railway
 
 دامنه HTTP پنل و تمام لینک‌های سابسکریپشن کار می‌کنند. Railway برای هر Service فقط یک TCP Proxy عمومی و ورودی UDP محدودی دارد؛ بنابراین برای عمومی‌کردن تعداد زیادی inbound با پورت‌های مستقل، باید از fallback روی یک پورت، Relayهای جدا یا VPS استفاده شود. این محدودیت خود Railway است و قابلیت‌های UI اصلی 3X-UI حذف نشده‌اند.
+
+## تنظیم خودکار شبکه GUCCI
+
+Workflow `railway-ensure.yml` در هر Push این وضعیت را enforce می‌کند:
+
+- دامنه عمومی روی Application Port `1`
+- دقیقاً یک TCP Proxy روی Application Port `1234` و حذف Proxyهای پورت دیگر
+- Inbound بومی VLESS Reality روی `1234`
+- فقط `play.google.com` به‌عنوان Reality SNI/target
+- Host override همه کاربران روی endpoint همان TCP Proxy
+- IP-limit UI فعال (3X-UI v3.6.0 از Online Stats API استفاده می‌کند)
+- Region فقط EU West آمستردام/هلند
