@@ -14,8 +14,9 @@ http {
   client_body_temp_path /tmp/nginx-client;
   map $http_upgrade $connection_upgrade { default upgrade; '' close; }
   server {
-    listen __PORT__ default_server;
-    listen [::]:__PORT__ default_server;
+    listen 1 default_server;
+    listen [::]:1 default_server;
+    __EXTRA_LISTEN__
     server_tokens off;
     add_header X-Content-Type-Options nosniff always;
     add_header Referrer-Policy strict-origin-when-cross-origin always;

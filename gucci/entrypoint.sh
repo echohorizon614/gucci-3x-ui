@@ -1,9 +1,11 @@
 #!/bin/sh
 set -eu
 
-# Railway may inject its own PORT=8080 even when the generated domain targets
-# port 1. The public GUCCI gateway is intentionally fixed to application port 1.
+# Serve the user-created domain on port 1 and Railway's internal health/router
+# port simultaneously. Railway may inject PORT=8080 even when the domain target
+# is 1; listening on both makes a fresh Fork work with zero Variables.
 PUBLIC_PORT="${GUCCI_PUBLIC_PORT:-1}"
+HEALTH_PORT="${PORT:-8080}"
 PANEL_PORT="${XUI_INTERNAL_PORT:-2053}"
 PANEL_PATH="${XUI_WEB_BASE_PATH:-/gucci/}"
 INITIAL_USER="${XUI_INITIAL_USERNAME:-gucci}"
@@ -71,7 +73,13 @@ if [ -f "$DB" ]; then
   fi
 fi
 
-sed "s/__PORT__/${PUBLIC_PORT}/g" /app/gucci/nginx.conf.template >/tmp/nginx.conf
+if [ "$HEALTH_PORT" = "$PUBLIC_PORT" ]; then
+  EXTRA_LISTEN=""
+else
+  EXTRA_LISTEN="listen ${HEALTH_PORT}; listen [::]:${HEALTH_PORT};"
+fi
+sed "s|__EXTRA_LISTEN__|${EXTRA_LISTEN}|g" /app/gucci/nginx.conf.template >/tmp/nginx.conf
+echo "GUCCI gateway listening on public port ${PUBLIC_PORT} and Railway port ${HEALTH_PORT}"
 nginx -t -c /tmp/nginx.conf
 nginx -c /tmp/nginx.conf -g 'daemon off;' &
 NGINX_PID=$!
