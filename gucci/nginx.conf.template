@@ -8,7 +8,13 @@ http {
   access_log /dev/stdout;
   sendfile on;
   tcp_nopush on;
+  tcp_nodelay on;
   keepalive_timeout 65;
+  gzip on;
+  gzip_vary on;
+  gzip_min_length 1024;
+  gzip_comp_level 5;
+  gzip_types text/plain text/css application/json application/javascript application/xml image/svg+xml;
   client_max_body_size 100m;
   proxy_temp_path /tmp/nginx-proxy;
   client_body_temp_path /tmp/nginx-client;
@@ -26,6 +32,12 @@ http {
     add_header X-Frame-Options SAMEORIGIN always;
 
     location = /healthz { access_log off; default_type text/plain; return 200 'ok\n'; }
+    location /gucci-assets/ {
+      alias /app/gucci/landing/assets/;
+      access_log off;
+      add_header Cache-Control "public, max-age=31536000, immutable" always;
+      try_files $uri =404;
+    }
     location = / { root /app/gucci/landing; try_files /index.html =404; add_header Cache-Control 'no-store, max-age=0'; }
     location = /gucci { return 308 /gucci/; }
     location = /gucci/enter {

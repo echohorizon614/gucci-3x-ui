@@ -15,6 +15,9 @@ jobs:
           sh -n gucci/entrypoint.sh
           grep -q 'ساخته شده توسط تیم' gucci/landing/index.html
           grep -q 'href="/gucci/enter"' gucci/landing/index.html
+          grep -q '/gucci-assets/gucci-bg.webp' gucci/landing/index.html
+          test -s gucci/landing/assets/gucci-bg.webp
+          test $(wc -c < gucci/landing/index.html) -lt 50000
           grep -q 'ghcr.io/mhsanaei/3x-ui:' Dockerfile.railway
       - name: Build Railway image
         run: docker build -f Dockerfile.railway -t gucci-3x-ui:test .
