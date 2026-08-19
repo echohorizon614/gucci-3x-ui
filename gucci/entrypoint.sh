@@ -24,6 +24,12 @@ persist_dir() {
 }
 
 mkdir -p "$DATA_ROOT" /tmp/nginx-proxy /tmp/nginx-client /run/nginx
+# One-time migration for an existing Railway volume that was previously mounted
+# directly at /etc/x-ui. Moving the mount to /data preserves the old database.
+if [ -f "$DATA_ROOT/x-ui.db" ] && [ ! -f "$DATA_ROOT/x-ui/x-ui.db" ]; then
+  mkdir -p "$DATA_ROOT/x-ui"
+  find "$DATA_ROOT" -maxdepth 1 -type f -exec mv {} "$DATA_ROOT/x-ui/" \;
+fi
 persist_dir /etc/x-ui "$DATA_ROOT/x-ui"
 persist_dir /root/cert "$DATA_ROOT/cert"
 persist_dir /root/.acme.sh "$DATA_ROOT/acme"
@@ -35,8 +41,8 @@ FIRST_BOOT=false
 
 # Initialize the native database through the official binary. Credentials are
 # only seeded once; later password/settings changes remain on the Railway volume.
-if [ "$FIRST_BOOT" = true ]; then
-  /app/x-ui setting -port "$PANEL_PORT" -username "$INITIAL_USER" -password "$INITIAL_PASS" -webBasePath "$PANEL_PATH" -listenIP 127.0.0.1
+if [ "$FIRST_BOOT" = true ] || [ "${XUI_FORCE_INITIAL_CREDENTIALS:-false}" = true ]; then
+  /app/x-ui setting -port "$PANEL_PORT" -username "$INITIAL_USER" -password "$INITIAL_PASS" -webBasePath "$PANEL_PATH" -listenIP 127.0.0.1 -resetTwoFactor
 else
   # The reverse-proxy contract is stable even when the image is upgraded.
   /app/x-ui setting -port "$PANEL_PORT" -webBasePath "$PANEL_PATH" -listenIP 127.0.0.1

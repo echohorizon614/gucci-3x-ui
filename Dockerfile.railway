@@ -8,7 +8,8 @@ RUN chmod 0755 /app/gucci/entrypoint.sh
 ENV XUI_ENABLE_FAIL2BAN=false \
     XUI_INTERNAL_PORT=2053 \
     XUI_WEB_BASE_PATH=/gucci/ \
-    XUI_DATA_ROOT=/data
+    XUI_DATA_ROOT=/data \
+    XUI_FORCE_INITIAL_CREDENTIALS=true
 EXPOSE 8080
 VOLUME ["/data"]
 ENTRYPOINT ["/app/gucci/entrypoint.sh"]
