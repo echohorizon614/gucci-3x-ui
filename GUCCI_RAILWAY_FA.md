@@ -54,3 +54,8 @@ Workflow زمان‌بندی‌شده هر روز آخرین Release پایدا�
 ## سازگاری کلاینت‌ها
 
 نسخه Railway عمداً Xray-core `v26.6.27` را با SHA-256 رسمی Pin می‌کند تا Reality با Xray، Mihomo/Clash Meta، sing-box و کلاینت‌های قدیمی‌تر سازگار بماند. در Reality inbound نیز برای سازگاری Mihomo مقدار `minClientVer` را در صورت نیاز روی `1.8.2` قرار دهید.
+
+
+## مسیر سازگاری عمومی
+
+Nginx مسیر `/gucci-connect/ws` را به `127.0.0.1:1235` Forward می‌کند. برای دستگاه‌هایی که Reality ندارند، یک inbound از نوع VLESS + WebSocket + security none روی پورت داخلی `1235` و همین path بسازید؛ لینک بیرونی باید از دامنه Railway، پورت `443` و `security=tls` استفاده کند.

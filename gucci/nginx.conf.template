@@ -57,6 +57,24 @@ http {
       include /app/gucci/security-headers.conf;
     }
 
+    # Compatibility transport: Railway terminates public TLS/443 and this
+    # long-lived WebSocket is forwarded to an optional Xray inbound on 1235.
+    # VLESS WS+TLS is supported by Xray, Mihomo/Clash Meta and sing-box clients.
+    location /gucci-connect/ws {
+      proxy_pass http://127.0.0.1:1235;
+      proxy_http_version 1.1;
+      proxy_set_header Host $host;
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection $connection_upgrade;
+      proxy_set_header X-Forwarded-Proto https;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_read_timeout 86400s;
+      proxy_send_timeout 86400s;
+      proxy_connect_timeout 5s;
+      proxy_buffering off;
+    }
+
     # Preserve the native 3X-UI subscription routes and formats.
     location ~ ^/(sub|json|clash)/ {
       proxy_pass http://127.0.0.1:2096;

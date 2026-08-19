@@ -28,6 +28,8 @@ Password: gucci
 
 تمام پیش‌فرض‌های ضروری داخل Image قرار دارند: پنل روی پورت `1`، Landing و ورودی کنترل‌شده پنل روی همان `/gucci/`، ورود اولیه `gucci / gucci`، دیتابیس در `/data/x-ui`، Xray و Subscription اصلی 3X-UI. بعد از باز شدن پنل، تمام تنظیمات شبکه و Inboundها در اختیار خود مدیر است.
 
+برای شبکه‌ها یا کلاینت‌هایی که REALITY را پشتیبانی نمی‌کنند، Gateway مسیر `/gucci-connect/ws` را به پورت داخلی `1235` آماده کرده است؛ مدیر می‌تواند داخل پنل یک VLESS WebSocket بدون TLS داخلی بسازد و لینک بیرونی را با TLS دامنه Railway روی پورت 443 ارائه کند.
+
 راهنمای تکمیلی: [`GUCCI_RAILWAY_FA.md`](GUCCI_RAILWAY_FA.md)
 
 ---
