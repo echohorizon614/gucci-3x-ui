@@ -77,7 +77,14 @@ trap 'kill "$NGINX_PID" 2>/dev/null || true' INT TERM EXIT
 
 export XUI_PORT="$PANEL_PORT"
 export XUI_INIT_WEB_BASE_PATH="$PANEL_PATH"
-export XUI_ENABLE_FAIL2BAN="${XUI_ENABLE_FAIL2BAN:-false}"
+export XUI_ENABLE_FAIL2BAN="${XUI_ENABLE_FAIL2BAN:-true}"
+# Alpine's bundled compatibility jails validate standard SSH log paths even
+# though SSH is disabled in this container. Empty files keep Fail2ban startup
+# clean while the 3X-UI IP-limit jail uses /var/log/x-ui.
+mkdir -p /var/log
+: > /var/log/auth.log
+: > /var/log/secure
+: > /var/log/messages
 
 # Run the untouched upstream panel as PID 1 child. Railway health checks Nginx;
 # if x-ui exits, this script exits and Railway restarts the service.
