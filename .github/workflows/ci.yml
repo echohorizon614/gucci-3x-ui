@@ -20,8 +20,12 @@ jobs:
           test -s gucci/landing/assets/gucci-bg.webp
           test -s gucci/landing/assets/favicon.svg
           test $(wc -c < gucci/landing/index.html) -lt 50000
-          grep -q 'ghcr.io/mhsanaei/3x-ui:' Dockerfile.railway
+          grep -q 'node:24-alpine AS frontend' Dockerfile.railway
+          grep -q 'golang:1.26-alpine AS builder' Dockerfile.railway
           grep -q 'XRAY_COMPAT_VERSION=v26.6.27' Dockerfile.railway
           grep -q 'b3e5902d06d6282fe53cfa2fc426058b9aeaa429b2c812e20887cd47f26d08bf' Dockerfile.railway
-      - name: Build Railway image
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: npm audit --audit-level=low
+      - name: Build Railway image from full source
         run: docker build -f Dockerfile.railway -t gucci-3x-ui:test .

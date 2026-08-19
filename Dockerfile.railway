@@ -1,24 +1,69 @@
-# Updated automatically by .github/workflows/update-upstream.yml
-ARG XUI_VERSION=v3.6.0
-FROM ghcr.io/mhsanaei/3x-ui:${XUI_VERSION}
-USER root
+# GUCCI Railway production image — built from this repository's full source.
+# The upstream sync workflow refreshes the source; this Dockerfile is retained.
+
+# ── Frontend ─────────────────────────────────────────────────────────────────
+FROM --platform=$BUILDPLATFORM node:24-alpine AS frontend
+WORKDIR /src/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY frontend/ ./
+COPY internal/web/translation /src/internal/web/translation
+RUN npm run build
+
+# ── 3X-UI Go binary + bundled resources ──────────────────────────────────────
+FROM golang:1.26-alpine AS builder
+WORKDIR /app
+ARG TARGETARCH
+RUN apk add --no-cache build-base gcc curl unzip
+COPY . .
+COPY --from=frontend /src/internal/web/dist ./internal/web/dist
+ENV CGO_ENABLED=1
+ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
+RUN go build -ldflags "-w -s" -o build/x-ui main.go
+RUN ./DockerInit.sh "$TARGETARCH"
+
+# ── Runtime ──────────────────────────────────────────────────────────────────
+FROM alpine:3.22
+ENV TZ=Asia/Tehran
+WORKDIR /app
 ARG XRAY_COMPAT_VERSION=v26.6.27
 ARG XRAY_COMPAT_SHA256=b3e5902d06d6282fe53cfa2fc426058b9aeaa429b2c812e20887cd47f26d08bf
-RUN apk add --no-cache nginx sqlite curl unzip \
-    && curl -fsSL --retry 3 -o /tmp/xray.zip "https://github.com/XTLS/Xray-core/releases/download/${XRAY_COMPAT_VERSION}/Xray-linux-64.zip" \
+RUN apk add --no-cache \
+      ca-certificates tzdata fail2ban bash curl openssl nginx sqlite unzip \
+    && rm -f /etc/fail2ban/jail.d/alpine-ssh.conf \
+    && cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local \
+    && sed -i "s/^\[ssh\]$/&\nenabled = false/" /etc/fail2ban/jail.local \
+    && sed -i "s/^\[sshd\]$/&\nenabled = false/" /etc/fail2ban/jail.local \
+    && sed -i "s/#allowipv6 = auto/allowipv6 = auto/g" /etc/fail2ban/fail2ban.conf
+
+COPY --from=builder /app/build/ /app/
+COPY --from=builder /app/DockerEntrypoint.sh /app/
+COPY --from=builder /app/x-ui.sh /usr/bin/x-ui
+COPY --from=builder /app/internal/web/translation /app/internal/web/translation
+COPY gucci /app/gucci
+
+# Xray 26.7.x introduced a REALITY compatibility regression for several
+# Mihomo/sing-box/older clients. Pin and verify the last broadly-compatible core.
+RUN curl -fsSL --retry 3 -o /tmp/xray.zip \
+      "https://github.com/XTLS/Xray-core/releases/download/${XRAY_COMPAT_VERSION}/Xray-linux-64.zip" \
     && echo "${XRAY_COMPAT_SHA256}  /tmp/xray.zip" | sha256sum -c - \
     && unzip -p /tmp/xray.zip xray > /app/bin/xray-linux-amd64 \
     && chmod 0755 /app/bin/xray-linux-amd64 \
-    && rm -f /tmp/xray.zip
-COPY gucci /app/gucci
-RUN chmod 0755 /app/gucci/entrypoint.sh
-ENV GUCCI_PUBLIC_PORT=1 \
+    && rm -f /tmp/xray.zip \
+    && chmod 0755 /app/DockerEntrypoint.sh /app/x-ui /usr/bin/x-ui /app/gucci/entrypoint.sh
+
+ENV XUI_IN_DOCKER=true \
+    XUI_MAIN_FOLDER=/app \
     XUI_ENABLE_FAIL2BAN=true \
+    XUI_DB_TYPE=sqlite \
+    XUI_DB_DSN="" \
+    GUCCI_PUBLIC_PORT=1 \
     XUI_DB_FOLDER=/data/x-ui \
     XUI_INTERNAL_PORT=2053 \
     XUI_WEB_BASE_PATH=/gucci/ \
     XUI_DATA_ROOT=/data \
     XUI_FORCE_INITIAL_CREDENTIALS=false
+
 EXPOSE 1 8080
 ENTRYPOINT ["/app/gucci/entrypoint.sh"]
 CMD []
