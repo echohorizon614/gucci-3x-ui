@@ -15,7 +15,7 @@
 - Username: `gucci`
 - Password: `gucci`
 
-در استقرار فعلی `XUI_FORCE_INITIAL_CREDENTIALS=true` است؛ بنابراین نام کاربری و رمز `gucci` پس از هر Restart هم اعمال می‌شوند. تمام کاربران، inboundها و سایر تنظیمات روی Volume باقی می‌مانند.
+در استقرار فعلی `XUI_FORCE_INITIAL_CREDENTIALS=false` است؛ بنابراین نام کاربری و رمز `gucci` پس از هر Restart هم اعمال می‌شوند. تمام کاربران، inboundها و سایر تنظیمات روی Volume باقی می‌مانند.
 
 ## Volume
 
@@ -39,8 +39,8 @@ XUI_WEB_BASE_PATH=/gucci/
 XUI_INITIAL_USERNAME=gucci
 XUI_INITIAL_PASSWORD=gucci
 XUI_DATA_ROOT=/data
-XUI_FORCE_INITIAL_CREDENTIALS=true
-XUI_ENABLE_FAIL2BAN=false
+XUI_FORCE_INITIAL_CREDENTIALS=false
+XUI_ENABLE_FAIL2BAN=true
 XRAY_VMESS_AEAD_FORCED=false
 ```
 

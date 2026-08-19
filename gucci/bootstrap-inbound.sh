@@ -41,7 +41,7 @@ if [ -n "$INBOUND" ]; then
       .remark="GUCCI-REALITY-TCP-1234-NL" |
       .enable=true | .listen="" | .port=$p | .protocol="vless" |
       .shareAddrStrategy="listen" | .shareAddr=$proxy |
-      .settings.clients=((.settings.clients // []) | map(.limitIp=(.limitIp // 0) | .enable=true)) |
+      .settings.clients=((.settings.clients // []) | map(.limitIp=(.limitIp // 0))) |
       .streamSettings.network="tcp" | .streamSettings.security="reality" |
       .streamSettings.realitySettings.target=($sni+":443") |
       .streamSettings.realitySettings.serverNames=[$sni] |

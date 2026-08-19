@@ -54,7 +54,7 @@ fi
 db_setting() {
   key=$(printf '%s' "$1" | sed "s/'/''/g")
   value=$(printf '%s' "$2" | sed "s/'/''/g")
-  sqlite3 "$DB" "INSERT INTO settings(key,value) SELECT '${key}','${value}' WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key='${key}'); UPDATE settings SET value='${value}' WHERE key='${key}';"
+  sqlite3 "$DB" "INSERT INTO settings(key,value) SELECT '${key}','${value}' WHERE NOT EXISTS (SELECT 1 FROM settings WHERE key='${key}');"
 }
 if [ -f "$DB" ]; then
   db_setting subListen 127.0.0.1
