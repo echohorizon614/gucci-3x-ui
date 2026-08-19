@@ -9,7 +9,6 @@ export const NodeRecordSchema = z.object({
   port: z.number().optional(),
   basePath: z.string().optional(),
   apiToken: z.string().optional(),
-  hasApiToken: z.boolean().optional(),
   enable: z.boolean().optional(),
   status: z.string().optional(),
   latencyMs: z.number().optional(),
@@ -68,7 +67,6 @@ export const NodeFormSchema = z.object({
   // mTLS nodes authenticate via the client certificate, so the token is optional
   // there; every other verify mode still requires one (matches remote.do()).
   apiToken: z.string().trim(),
-  hasStoredToken: z.boolean().optional().default(false),
   enable: z.boolean(),
   allowPrivateAddress: z.boolean(),
   tlsVerifyMode: z.enum(['verify', 'skip', 'pin', 'mtls']),
@@ -79,7 +77,7 @@ export const NodeFormSchema = z.object({
   inboundTags: z.array(z.string()).nullish().transform((tags) => tags ?? []),
   outboundTag: z.string().optional(),
 }).superRefine((val, ctx) => {
-  if (val.tlsVerifyMode !== 'mtls' && val.apiToken.length === 0 && !val.hasStoredToken) {
+  if (val.tlsVerifyMode !== 'mtls' && val.apiToken.length === 0) {
     ctx.addIssue({
       code: 'custom',
       path: ['apiToken'],

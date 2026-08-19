@@ -1,96 +1,19 @@
-name: Update stable 3X-UI upstream
+name: Verify pinned 3X-UI v3.4.2
 on:
-  schedule:
-    - cron: '17 4 * * *'
   workflow_dispatch:
 permissions:
-  contents: write
-concurrency:
-  group: upstream-update
-  cancel-in-progress: false
+  contents: read
 jobs:
-  update:
+  verify-pin:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-      - name: Sync latest stable release
-        shell: bash
+      - name: Verify the requested upstream panel pin
         run: |
           set -euo pipefail
-          latest=$(curl -fsSL https://api.github.com/repos/MHSanaei/3x-ui/releases/latest | jq -r .tag_name)
-          current=$(tr -d '[:space:]' < UPSTREAM_VERSION)
-          [ -n "$latest" ] && [ "$latest" != "null" ]
-          if [ "$latest" = "$current" ]; then
-            echo "Already current: $current"
-            exit 0
-          fi
-          curl -fsSL "https://github.com/MHSanaei/3x-ui/archive/refs/tags/${latest}.tar.gz" -o /tmp/upstream.tar.gz
-          mkdir -p /tmp/upstream
-          tar -xzf /tmp/upstream.tar.gz -C /tmp/upstream --strip-components=1
-          rsync -a --delete \
-            --exclude='.git/' \
-            --exclude='.github/workflows/' \
-            --exclude='gucci/' \
-            --exclude='Dockerfile.railway' \
-            --exclude='railway.toml' \
-            --exclude='UPSTREAM_VERSION' \
-            --exclude='GUCCI_RAILWAY_FA.md' \
-            --exclude='README.md' \
-            /tmp/upstream/ ./
-          printf '%s\n' "$latest" > UPSTREAM_VERSION
-
-          # Re-apply the audited dependency floors after upstream rsync so a
-          # stable upgrade cannot silently reintroduce a known advisory.
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          p = Path('frontend/package.json')
-          x = json.loads(p.read_text())
-          o = x.setdefault('overrides', {})
-          for key in ('dompurify', 'brace-expansion', 'nanoid', 'mermaid', 'postcss'):
-              o.pop(key, None)
-          o.update({
-              'brace-expansion@<2.0.0': '^1.1.18',
-              'brace-expansion@>=4.0.0 <5.0.9': '^5.0.9',
-              'dompurify@<=3.4.12': '^3.4.13',
-              'nanoid@<3.3.18': '^3.3.18',
-              'mermaid@>=11.0.0-alpha.1 <11.16.1': '^11.16.1',
-              'postcss@<=8.5.22': '^8.5.23',
-          })
-          p.write_text(json.dumps(x, indent=2) + '\n')
-          PY
-          (cd frontend && npm install --package-lock-only --ignore-scripts --no-audit --no-fund)
-          (cd frontend && npm audit --audit-level=low)
-
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('docs/pnpm-workspace.yaml')
-          s = p.read_text()
-          if 'overrides:\n' not in s:
-              s += '\noverrides:\n'
-          floors = [
-              "  'brace-expansion@<2.0.0': '^1.1.18'",
-              "  'brace-expansion@>=4.0.0 <5.0.9': '^5.0.9'",
-              "  'dompurify@<=3.4.12': '^3.4.13'",
-              "  'js-yaml@>=4.0.0 <4.3.1': '^4.3.1'",
-              "  'nanoid@<3.3.18': '^3.3.18'",
-              "  'postcss@<=8.5.22': '^8.5.23'",
-          ]
-          pos = s.index('overrides:\n') + len('overrides:\n')
-          missing = [line for line in floors if line not in s]
-          s = s[:pos] + ('\n'.join(missing) + ('\n' if missing else '')) + s[pos:]
-          p.write_text(s)
-          PY
-          (cd docs && npx -y pnpm@11.15.1 install --lockfile-only --ignore-scripts)
-          (cd docs && npx -y pnpm@11.15.1 audit --audit-level=low)
-
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m "chore: sync 3X-UI ${latest}"
-          git push
+          test "$(tr -d '[:space:]' < UPSTREAM_VERSION)" = "v3.4.2"
+          test "$(tr -d '[:space:]' < internal/config/version)" = "3.4.2"
+          tag_sha=$(curl -fsSL https://api.github.com/repos/MHSanaei/3x-ui/git/ref/tags/v3.4.2 | jq -r '.object.sha')
+          test "$tag_sha" = "f3a57d4c57fbcae94414138de42b7ef11dc513c8"
+          grep -q 'XRAY_COMPAT_VERSION=v26.6.27' Dockerfile.railway
+          echo 'Pinned panel/core pair verified: 3X-UI v3.4.2 + Xray v26.6.27'

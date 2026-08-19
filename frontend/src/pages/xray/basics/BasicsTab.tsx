@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { onNumber } from '@/utils/onNumber';
 import { useTranslation } from 'react-i18next';
 import { Alert, Button, Input, InputNumber, Modal, Select, Space, Switch, Tabs } from 'antd';
 import {
@@ -116,8 +115,7 @@ export default function BasicsTab({
       ?.sockopt;
     const raw = sockopt?.happyEyeballs;
     if (raw == null || typeof raw !== 'object') return null;
-    const parsed = HappyEyeballsSchema.safeParse(raw);
-    return parsed.success ? parsed.data : null;
+    return HappyEyeballsSchema.parse(raw);
   })();
 
   const setDirectHappyEyeballs = useCallback(
@@ -217,10 +215,10 @@ export default function BasicsTab({
                     style={{ width: '100%' }}
                     value={directHappyEyeballs.tryDelayMs}
                     placeholder="150"
-                    onChange={onNumber((v) => setDirectHappyEyeballs({
+                    onChange={(v) => setDirectHappyEyeballs({
                       ...directHappyEyeballs,
-                      tryDelayMs: v,
-                    }))}
+                      tryDelayMs: typeof v === 'number' ? v : 0,
+                    })}
                   />
                 }
               />

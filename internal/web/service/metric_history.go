@@ -4,7 +4,6 @@ import (
 	"encoding/gob"
 	"os"
 	"path/filepath"
-	"slices"
 	"sync"
 	"time"
 
@@ -171,8 +170,8 @@ func (h *metricHistory) aggregate(metric string, bucketSeconds int, maxPoints in
 	h.mu.Unlock()
 
 	startIdx := len(raw)
-	for i, r := range slices.Backward(raw) {
-		if r.T < cutoff {
+	for i := len(raw) - 1; i >= 0; i-- {
+		if raw[i].T < cutoff {
 			break
 		}
 		startIdx = i

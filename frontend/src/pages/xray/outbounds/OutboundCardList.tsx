@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Dropdown, Tag, Tooltip } from 'antd';
 import {
@@ -10,21 +9,15 @@ import {
   ThunderboltOutlined,
   LoadingOutlined,
   ExportOutlined,
-  EyeInvisibleOutlined,
-  EyeOutlined,
 } from '@ant-design/icons';
 
 import { SizeFormatter } from '@/utils';
-import { activateOnKey } from '@/utils/a11y';
 import { OutboundProtocols as Protocols } from '@/schemas/primitives';
-import type { OutboundTestMode, OutboundTestState, OutboundTrafficRow } from '@/hooks/useXraySetting';
+import type { OutboundTestState, OutboundTrafficRow } from '@/hooks/useXraySetting';
 
 import type { OutboundRow } from './outbounds-tab-types';
-import CountryPill from './CountryPill';
 import TestResultPopover from './TestResultPopover';
 import {
-  countryFlag,
-  countryName,
   isTesting,
   isUntestable,
   outboundAddresses,
@@ -35,7 +28,7 @@ import {
 
 interface OutboundCardListProps {
   rows: OutboundRow[];
-  testMode: OutboundTestMode;
+  testMode: 'tcp' | 'http';
   outboundsTraffic: OutboundTrafficRow[];
   outboundTestStates: Record<number, OutboundTestState>;
   setFirst: (idx: number) => void;
@@ -56,55 +49,7 @@ export default function OutboundCardList({
   confirmDelete,
   onTest,
 }: OutboundCardListProps) {
-  const { t, i18n } = useTranslation();
-  const [showEgressIp, setShowEgressIp] = useState<Record<string, boolean>>({});
-
-  const setCardEgressVisible = (key: string, visible: boolean) => {
-    setShowEgressIp((prev) => ({ ...prev, [key]: visible }));
-  };
-
-  const renderEgress = (testKey: number, rowKey: string) => {
-    const result = testResult(outboundTestStates, testKey);
-    const egress = result?.egress;
-    const isEgressVisible = !!showEgressIp[rowKey];
-    const flag = countryFlag(egress?.country);
-    const name = countryName(egress?.country, i18n.language);
-    const addresses = [
-      egress?.ipv4 ? { label: 'v4', value: egress.ipv4 } : null,
-      egress?.ipv6 ? { label: 'v6', value: egress.ipv6 } : null,
-    ].filter((item): item is { label: string; value: string } => Boolean(item));
-
-    if (!egress || (addresses.length === 0 && !egress.country)) {
-      return null;
-    }
-
-    return (
-      <div className="card-egress">
-        <div className="card-egress-row">
-          <span>{t('pages.xray.outbound.egress')}:</span>
-          <Tooltip title={t('pages.index.toggleIpVisibility')}>
-            {isEgressVisible ? (
-              <EyeOutlined className="ip-toggle-icon" role="button" tabIndex={0} aria-label={t('pages.index.toggleIpVisibility')} onClick={() => setCardEgressVisible(rowKey, false)} onKeyDown={activateOnKey(() => setCardEgressVisible(rowKey, false))} />
-            ) : (
-              <EyeInvisibleOutlined className="ip-toggle-icon" role="button" tabIndex={0} aria-label={t('pages.index.toggleIpVisibility')} onClick={() => setCardEgressVisible(rowKey, true)} onKeyDown={activateOnKey(() => setCardEgressVisible(rowKey, true))} />
-            )}
-          </Tooltip>
-          {egress.country && (
-            <CountryPill flag={flag} name={name || egress.country} warp={egress.warp} />
-          )}
-        </div>
-        {addresses.map((addr) => (
-          <Tooltip key={addr.label} title={addr.value}>
-            <div className="card-egress-row">
-              <span className="egress-family">{addr.label}:</span>
-              <span className={isEgressVisible ? 'address-visible egress-ip' : 'address-hidden egress-ip'}>{addr.value}</span>
-            </div>
-          </Tooltip>
-        ))}
-      </div>
-    );
-  };
-
+  const { t } = useTranslation();
   if (rows.length === 0) {
     return (
       <div className="card-empty">
@@ -156,26 +101,25 @@ export default function OutboundCardList({
               ))}
             </div>
           )}
-          {renderEgress(record.key, String(record.key))}
           <div className="card-foot">
             <span className="traffic-up">↑ {SizeFormatter.sizeFormat(trafficFor(outboundsTraffic, record).up)}</span>
             <span className="traffic-sep" />
             <span className="traffic-down">↓ {SizeFormatter.sizeFormat(trafficFor(outboundsTraffic, record).down)}</span>
             <span className="card-test">
-              {testResult(outboundTestStates, record.key) ? (
-                <TestResultPopover result={testResult(outboundTestStates, record.key)!} />
-              ) : isTesting(outboundTestStates, record.key) ? (
+              {testResult(outboundTestStates, index) ? (
+                <TestResultPopover result={testResult(outboundTestStates, index)!} />
+              ) : isTesting(outboundTestStates, index) ? (
                 <LoadingOutlined />
               ) : null}
               <Button
                 type="primary"
                 shape="circle"
                 size="small"
-                loading={isTesting(outboundTestStates, record.key)}
-                disabled={isUntestable(record) || isTesting(outboundTestStates, record.key)}
+                loading={isTesting(outboundTestStates, index)}
+                disabled={isUntestable(record) || isTesting(outboundTestStates, index)}
                 icon={<ThunderboltOutlined />}
                 aria-label={t('check')}
-                onClick={() => onTest(record.key, testMode)}
+                onClick={() => onTest(index, testMode)}
               />
             </span>
           </div>

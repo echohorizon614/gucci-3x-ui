@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button, Divider, Modal, Popover, Tag, Tooltip, message } from 'antd';
-import { CopyOutlined, DownloadOutlined, EyeOutlined, QrcodeOutlined, ReloadOutlined } from '@ant-design/icons';
+import { CopyOutlined, EyeOutlined, QrcodeOutlined, ReloadOutlined } from '@ant-design/icons';
 
-import { ClipboardManager, FileManager, HttpUtil, IntlUtil, SizeFormatter } from '@/utils';
+import { ClipboardManager, HttpUtil, IntlUtil, SizeFormatter } from '@/utils';
 import { formatInboundLabel } from '@/lib/inbounds/label';
 import { normalizeClientIps, type ClientIpInfo } from '@/lib/clients/ip-log';
 import { useDatepicker } from '@/hooks/useDatepicker';
@@ -64,12 +64,6 @@ const DEFAULT_SUB: SubSettings = {
   publicHost: '',
 };
 
-const SUBSCRIPTION_DOWNLOAD_NAMES = {
-  standard: 'subscription-standard.txt',
-  json: 'subscription-json.json',
-  clash: 'subscription-clash.yaml',
-} as const;
-
 export default function ClientInfoModal({
   open,
   client,
@@ -95,7 +89,6 @@ export default function ClientInfoModal({
   const [ipsLoading, setIpsLoading] = useState(false);
   const [ipsClearing, setIpsClearing] = useState(false);
   const [ipsModalOpen, setIpsModalOpen] = useState(false);
-  const [downloadingFormat, setDownloadingFormat] = useState<keyof typeof SUBSCRIPTION_DOWNLOAD_NAMES | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -153,21 +146,6 @@ export default function ClientInfoModal({
     if (!text) return;
     const ok = await ClipboardManager.copyText(String(text));
     if (ok) messageApi.success(t('copied'));
-  }
-
-  async function downloadSubscription(url: string, format: keyof typeof SUBSCRIPTION_DOWNLOAD_NAMES) {
-    if (!url || downloadingFormat) return;
-    setDownloadingFormat(format);
-    try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Subscription download failed');
-      const content = await response.text();
-      FileManager.downloadTextFile(content, SUBSCRIPTION_DOWNLOAD_NAMES[format]);
-    } catch (_) {
-      messageApi.error(t('somethingWentWrong'));
-    } finally {
-      setDownloadingFormat(null);
-    }
   }
 
   async function loadIps() {
@@ -330,12 +308,6 @@ export default function ClientInfoModal({
                   <td>{t('pages.inbounds.updatedAt')}</td>
                   <td><Tag>{dateLabel(client.updatedAt)}</Tag></td>
                 </tr>
-                {client.group && (
-                  <tr>
-                    <td>{t('pages.clients.group')}</td>
-                    <td><Tag color="geekblue">{client.group}</Tag></td>
-                  </tr>
-                )}
                 {client.comment && (
                   <tr>
                     <td>{t('pages.clients.comment')}</td>
@@ -405,9 +377,6 @@ export default function ClientInfoModal({
                     <Tooltip title={t('copy')}>
                       <Button size="small" icon={<CopyOutlined />} aria-label={t('copy')} onClick={() => copyValue(subLink)} />
                     </Tooltip>
-                    <Tooltip title={t('download')}>
-                      <Button size="small" icon={<DownloadOutlined />} aria-label={t('download')} loading={downloadingFormat === 'standard'} disabled={downloadingFormat !== null} onClick={() => void downloadSubscription(subLink, 'standard')} />
-                    </Tooltip>
                     <Popover
                       trigger="click"
                       placement="left"
@@ -435,9 +404,6 @@ export default function ClientInfoModal({
                     <div className="link-row-actions">
                       <Tooltip title={t('copy')}>
                         <Button size="small" icon={<CopyOutlined />} aria-label={t('copy')} onClick={() => copyValue(subJsonLink)} />
-                      </Tooltip>
-                      <Tooltip title={t('download')}>
-                        <Button size="small" icon={<DownloadOutlined />} aria-label={t('download')} loading={downloadingFormat === 'json'} disabled={downloadingFormat !== null} onClick={() => void downloadSubscription(subJsonLink, 'json')} />
                       </Tooltip>
                       <Popover
                         trigger="click"
@@ -469,9 +435,6 @@ export default function ClientInfoModal({
                     <div className="link-row-actions">
                       <Tooltip title={t('copy')}>
                         <Button size="small" icon={<CopyOutlined />} aria-label={t('copy')} onClick={() => copyValue(subClashLink)} />
-                      </Tooltip>
-                      <Tooltip title={t('download')}>
-                        <Button size="small" icon={<DownloadOutlined />} aria-label={t('download')} loading={downloadingFormat === 'clash'} disabled={downloadingFormat !== null} onClick={() => void downloadSubscription(subClashLink, 'clash')} />
                       </Tooltip>
                       <Popover
                         trigger="click"

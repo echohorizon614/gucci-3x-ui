@@ -9,7 +9,6 @@ import (
 	yaml "github.com/goccy/go-yaml"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
-	wgutil "github.com/mhsanaei/3x-ui/v3/internal/util/wireguard"
 )
 
 type SubClashService struct {
@@ -103,7 +102,7 @@ func (s *SubClashService) GetClash(subId string, host string) (string, string, e
 		}
 	}
 
-	finalYAML, err := marshalClashYAML(config)
+	finalYAML, err := yaml.Marshal(config)
 	if err != nil {
 		return "", "", err
 	}
@@ -168,22 +167,16 @@ func (s *SubClashService) getProxies(subReq *SubService, inbound *model.Inbound,
 
 	proxies := make([]map[string]any, 0, len(externalProxies))
 	for _, ep := range externalProxies {
-		extPrxy, ok := ep.(map[string]any)
-		if !ok {
-			continue
-		}
+		extPrxy := ep.(map[string]any)
 		// Expand the host's {{VAR}} remark template for this client (no-op for
 		// the synthetic/legacy entry) before it becomes the proxy name.
 		subReq.renderHostRemark(inbound, client, extPrxy, network)
 		workingInbound := *inbound
-		workingInbound.Listen, _ = extPrxy["dest"].(string)
-		if port, ok := extPrxy["port"].(float64); ok {
-			workingInbound.Port = int(port)
-		}
+		workingInbound.Listen = extPrxy["dest"].(string)
+		workingInbound.Port = int(extPrxy["port"].(float64))
 		workingStream := cloneStreamForExternalProxy(stream)
 
-		forceTls, _ := extPrxy["forceTls"].(string)
-		switch forceTls {
+		switch extPrxy["forceTls"].(string) {
 		case "tls":
 			if workingStream["security"] != "tls" {
 				workingStream["security"] = "tls"
@@ -221,9 +214,6 @@ func (s *SubClashService) buildProxy(subReq *SubService, inbound *model.Inbound,
 	if inbound.Protocol == model.Hysteria {
 		return s.buildHysteriaProxy(subReq, inbound, client, ep)
 	}
-	if inbound.Protocol == model.WireGuard {
-		return s.buildWireguardProxy(subReq, inbound, client, ep)
-	}
 
 	network, _ := stream["network"].(string)
 
@@ -242,11 +232,16 @@ func (s *SubClashService) buildProxy(subReq *SubService, inbound *model.Inbound,
 		proxy["type"] = "vmess"
 		proxy["uuid"] = client.ID
 		proxy["alterId"] = 0
-		proxy["cipher"] = normalizeVmessSecurity(client.Security)
+		cipher := client.Security
+		if cipher == "" {
+			cipher = "auto"
+		}
+		proxy["cipher"] = cipher
 	case model.VLESS:
 		proxy["type"] = "vless"
 		proxy["uuid"] = applyVlessRoute(client.ID, hostVlessRoute(ep))
-		inboundSettings := subReq.linkSettings(inbound)
+		var inboundSettings map[string]any
+		_ = json.Unmarshal([]byte(inbound.Settings), &inboundSettings)
 		streamSecurity, _ := stream["security"].(string)
 		if client.Flow != "" && vlessFlowAllowed(network, streamSecurity, inboundSettings) {
 			proxy["flow"] = client.Flow
@@ -263,7 +258,8 @@ func (s *SubClashService) buildProxy(subReq *SubService, inbound *model.Inbound,
 	case model.Shadowsocks:
 		proxy["type"] = "ss"
 		proxy["password"] = client.Password
-		inboundSettings := subReq.linkSettings(inbound)
+		var inboundSettings map[string]any
+		_ = json.Unmarshal([]byte(inbound.Settings), &inboundSettings)
 		method, _ := inboundSettings["method"].(string)
 		if method == "" {
 			return nil
@@ -292,7 +288,8 @@ func (s *SubClashService) buildProxy(subReq *SubService, inbound *model.Inbound,
 // helpers prune fields (like `allowInsecure` / the salamander obfs
 // block) that the hysteria proxy wants preserved.
 func (s *SubClashService) buildHysteriaProxy(subReq *SubService, inbound *model.Inbound, client model.Client, ep map[string]any) map[string]any {
-	inboundSettings := subReq.linkSettings(inbound)
+	var inboundSettings map[string]any
+	_ = json.Unmarshal([]byte(inbound.Settings), &inboundSettings)
 
 	proxyType := "hysteria2"
 	authKey := "password"
@@ -338,9 +335,6 @@ func (s *SubClashService) buildHysteriaProxy(subReq *SubService, inbound *model.
 			}
 		}
 	}
-	if insecure, ok := ep["allowInsecure"].(bool); ok && insecure {
-		proxy["skip-cert-verify"] = true
-	}
 
 	// Salamander obfs (Hysteria2). Read the same finalmask.udp[salamander]
 	// block the subscription link generator uses.
@@ -365,67 +359,6 @@ func (s *SubClashService) buildHysteriaProxy(subReq *SubService, inbound *model.
 	// field (the base `port` stays as the redirect target).
 	if hopPorts := hysteriaHopPorts(rawStream); hopPorts != "" {
 		proxy["ports"] = hopPorts
-	}
-
-	return proxy
-}
-
-// buildWireguardProxy produces a mihomo-compatible Clash entry for a native
-// WireGuard inbound, mirroring genWireguardLink: the peer public key is derived
-// from the inbound secretKey, while the private key, tunnel address, and
-// pre-shared key come from the client. Returns nil when the client has no key.
-func (s *SubClashService) buildWireguardProxy(subReq *SubService, inbound *model.Inbound, client model.Client, ep map[string]any) map[string]any {
-	if client.PrivateKey == "" {
-		return nil
-	}
-
-	var inboundSettings map[string]any
-	_ = json.Unmarshal([]byte(inbound.Settings), &inboundSettings)
-	secretKey, _ := inboundSettings["secretKey"].(string)
-
-	proxy := map[string]any{
-		"name":        subReq.endpointRemark(inbound, client.Email, ep, ""),
-		"type":        "wireguard",
-		"server":      inbound.Listen,
-		"port":        inbound.Port,
-		"udp":         true,
-		"private-key": client.PrivateKey,
-	}
-	if secretKey != "" {
-		if pub, err := wgutil.PublicKeyFromPrivate(secretKey); err == nil {
-			proxy["public-key"] = pub
-		}
-	}
-	if client.PreSharedKey != "" {
-		proxy["pre-shared-key"] = client.PreSharedKey
-	}
-	if client.KeepAlive > 0 {
-		proxy["persistent-keepalive"] = client.KeepAlive
-	}
-	for _, addr := range client.AllowedIPs {
-		ip := stripCIDR(addr)
-		if ip == "" {
-			continue
-		}
-		if strings.Contains(ip, ":") {
-			proxy["ipv6"] = ip
-		} else {
-			proxy["ip"] = ip
-		}
-	}
-	if mtu, ok := inboundSettings["mtu"].(float64); ok && mtu > 0 {
-		proxy["mtu"] = int(mtu)
-	}
-	if dns, _ := inboundSettings["dns"].(string); dns != "" {
-		servers := make([]string, 0)
-		for server := range strings.SplitSeq(dns, ",") {
-			if server = strings.TrimSpace(server); server != "" {
-				servers = append(servers, server)
-			}
-		}
-		if len(servers) > 0 {
-			proxy["dns"] = servers
-		}
 	}
 
 	return proxy
@@ -689,9 +622,6 @@ func (s *SubClashService) applySecurity(proxy map[string]any, security string, s
 				if insecure, ok := inner["allowInsecure"].(bool); ok && insecure {
 					proxy["skip-cert-verify"] = true
 				}
-			}
-			if pins, ok := tlsSettings["pin-sha256"].([]any); ok && len(pins) > 0 {
-				proxy["pin-sha256"] = pins
 			}
 		}
 		return true

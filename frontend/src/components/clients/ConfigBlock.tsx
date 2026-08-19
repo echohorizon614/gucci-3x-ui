@@ -68,7 +68,6 @@ export default function ConfigBlock({
       {messageContextHolder}
       <Collapse
         className="config-block"
-        collapsible="header"
         defaultActiveKey={defaultOpen ? ['cfg'] : []}
         items={[{
           key: 'cfg',

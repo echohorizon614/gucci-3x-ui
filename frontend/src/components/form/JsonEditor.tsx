@@ -120,7 +120,6 @@ const JsonEditor = forwardRef<JsonEditorHandle, JsonEditorProps>(function JsonEd
         doc: value,
         extensions: [
           basicSetup,
-          EditorView.contentAttributes.of({ 'aria-label': t('jsonEditor') }),
           keymap.of([indentWithTab]),
           json(),
           linter(jsonParseLinter()),

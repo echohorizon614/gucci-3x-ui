@@ -64,16 +64,6 @@ func upsertNodeClientIps(guid string, perEmail map[string][]model.ClientIpEntry)
 		existingByEmail[existing[i].Email] = &existing[i]
 	}
 
-	// Deterministic row order keeps concurrent guid merges from deadlocking on
-	// Postgres (40P01) — same discipline as MergeInboundClientIps.
-	emails := make([]string, 0, len(perEmail))
-	for email := range perEmail {
-		if email != "" {
-			emails = append(emails, email)
-		}
-	}
-	sort.Strings(emails)
-
 	tx := db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -81,8 +71,10 @@ func upsertNodeClientIps(guid string, perEmail map[string][]model.ClientIpEntry)
 		}
 	}()
 
-	for _, email := range emails {
-		incoming := perEmail[email]
+	for email, incoming := range perEmail {
+		if email == "" {
+			continue
+		}
 		var old []model.ClientIpEntry
 		if cur, ok := existingByEmail[email]; ok && cur.Ips != "" {
 			_ = json.Unmarshal([]byte(cur.Ips), &old)

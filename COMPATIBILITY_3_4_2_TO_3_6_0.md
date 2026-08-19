@@ -2,6 +2,8 @@
 
 Audit date: 2026-08-19
 
+> **Current deployment decision:** after this comparison, the administrator explicitly requested the complete panel itself be pinned to official 3X-UI v3.4.2. The v3.6.0 mitigation section below records the earlier diagnosis; it is no longer the active panel version. Production now uses the v3.4.2 source and its matching Xray v26.6.27 runtime, while retaining the GUCCI persistence, HTTPS/443 fallback, and health-check layer.
+
 ## Scope and method
 
 This compares the official `MHSanaei/3x-ui` tags (the product is 3X-UI, not the unrelated S-UI project):
@@ -62,9 +64,9 @@ This isolates the version-floor behavior from DNS, Railway, panel UI, UUID, key,
 - v3.6.0 contains multiple DNS, routing, subscription, VLESS-flow, forwarded-host, runtime lifecycle, and malformed-config fixes. Reverting the panel would discard those improvements and is unnecessary.
 - The REALITY `minClientVer` field is server-side and is not carried in client share links. Recreating UUIDs, keys, SNI, or SpiderX does not fix an implicit server version floor.
 
-## Applied compatibility design
+## Earlier v3.6.0 mitigation (historical)
 
-The production image keeps the complete 3X-UI v3.6.0 panel while restoring the relevant v3.4.2 behavior:
+Before the later explicit request to pin the full panel to v3.4.2, the production image kept the complete 3X-UI v3.6.0 panel while restoring the relevant v3.4.2 behavior:
 
 1. Runtime Xray is pinned to official `v26.6.27` and verified with SHA-256 `b3e5902d06d6282fe53cfa2fc426058b9aeaa429b2c812e20887cd47f26d08bf`.
 2. Blank legacy REALITY `minClientVer` values are normalized to explicit `1.0.0` at startup; deliberately configured non-empty values are never overwritten.

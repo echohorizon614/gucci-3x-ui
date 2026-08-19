@@ -71,7 +71,7 @@ func isTrustedProxy(ip string) bool {
 }
 
 func trustedProxyCIDRs() (trusted string) {
-	trusted = service.DefaultTrustedProxyCIDRs
+	trusted = "127.0.0.1/32,::1/128"
 	defer func() {
 		_ = recover()
 	}()

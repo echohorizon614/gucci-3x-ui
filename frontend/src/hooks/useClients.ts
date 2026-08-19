@@ -32,7 +32,6 @@ import {
   type BulkDetachResult,
 } from '@/schemas/client';
 import { DefaultsPayloadSchema } from '@/schemas/defaults';
-import { TRAFFIC_POLL_INTERVAL_S } from '@/lib/traffic/poll-interval';
 
 // One row sent to POST /clients/:email/externalLinks.
 export type ExternalLinkInput = { kind: 'link' | 'subscription'; value: string; remark: string };
@@ -73,15 +72,8 @@ export interface ClientQueryParams {
 
 const DEFAULT_QUERY: ClientQueryParams = { page: 1, pageSize: 25 };
 const DEFAULT_SUMMARY: ClientsSummary = {
-  total: 0, active: 0,
-  onlineCount: 0, depletedCount: 0, expiringCount: 0, deactiveCount: 0,
-  online: [], depleted: [], expiring: [], deactive: [],
+  total: 0, active: 0, online: [], depleted: [], expiring: [], deactive: [],
 };
-
-export interface ClientSpeedEntry {
-  up: number;
-  down: number;
-}
 
 type ClientStatRow = ClientTraffic & { email?: string };
 
@@ -116,63 +108,7 @@ export function computeClientsSummary(
     if (nearExpiry || nearLimit) expiring.push(email);
     else active += 1;
   }
-  return {
-    total: stats.length,
-    active,
-    onlineCount: online.length,
-    depletedCount: depleted.length,
-    expiringCount: expiring.length,
-    deactiveCount: deactive.length,
-    online,
-    depleted,
-    expiring,
-    deactive,
-  };
-}
-
-export function sameSpeedMap(
-  a: Record<string, ClientSpeedEntry>,
-  b: Record<string, ClientSpeedEntry>,
-): boolean {
-  const aKeys = Object.keys(a);
-  if (aKeys.length !== Object.keys(b).length) return false;
-  for (const key of aKeys) {
-    const left = a[key];
-    const right = b[key];
-    if (!right || left.up !== right.up || left.down !== right.down) return false;
-  }
-  return true;
-}
-
-// The field list computeClientsSummary reads, and deliberately nothing else.
-// lastOnline in particular churns for every online client on every push and no
-// counter depends on it, so including it here would defeat the comparison.
-export function sameSummaryInputs(a: ClientStatRow[], b: ClientStatRow[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    const left = a[i];
-    const right = b[i];
-    if (left.email !== right.email
-      || left.up !== right.up
-      || left.down !== right.down
-      || left.total !== right.total
-      || left.enable !== right.enable
-      || left.expiryTime !== right.expiryTime) return false;
-  }
-  return true;
-}
-
-export function pickClientsSummary(
-  serverSummary: ClientsSummary,
-  allClientStats: ClientStatRow[],
-  onlineSet: Set<string>,
-  expireDiffMs: number,
-  trafficDiffBytes: number,
-): ClientsSummary {
-  if (allClientStats.length === 0) return serverSummary;
-  if (serverSummary.total > allClientStats.length) return serverSummary;
-  const live = computeClientsSummary(allClientStats, onlineSet, expireDiffMs, trafficDiffBytes);
-  return { ...live, total: serverSummary.total || live.total };
+  return { total: stats.length, active, online, depleted, expiring, deactive };
 }
 
 function buildQS(p: ClientQueryParams): string {
@@ -200,7 +136,7 @@ async function fetchClientPage(params: ClientQueryParams): Promise<ClientPageRes
   const qs = buildQS(params);
   const msg = await HttpUtil.get(`/panel/api/clients/list/paged?${qs}`, undefined, { silent: true });
   if (!msg?.success || !msg.obj) throw new Error(msg?.msg || 'Failed to fetch clients');
-  const validated = parseMsg(msg, ClientPageResponseSchema, 'clients/list/paged', { strict: true });
+  const validated = parseMsg(msg, ClientPageResponseSchema, 'clients/list/paged');
   if (!validated.obj) throw new Error('Empty clients response');
   return validated.obj;
 }
@@ -219,31 +155,17 @@ async function fetchDefaults(): Promise<Record<string, unknown>> {
   return validated.obj || {};
 }
 
-export interface UseClientsOptions {
-  // Callers that only need the mutations — the bulk modals, the groups page —
-  // pass false. Mounting them used to start a second 5-second poll of the paged
-  // list whose result they never read, which on a large panel means a full
-  // summary aggregate every 5 seconds for nothing.
-  list?: boolean;
-}
-
-export function useClients(options: UseClientsOptions = {}) {
-  const withList = options.list ?? true;
+export function useClients() {
   const queryClient = useQueryClient();
 
-  // Null until the page has settled on a query. The clients page cannot build
-  // one until the persisted sort and the panel's configured page size are both
-  // known, and fetching before then cost three sequential requests per load —
-  // the first two thrown away (#trace).
-  const [query, setQueryState] = useState<ClientQueryParams | null>(null);
+  const [query, setQueryState] = useState<ClientQueryParams>(DEFAULT_QUERY);
   // setQuery shallow-compares so callers can pass a fresh object every render
   // (the common React pattern) without triggering a re-fetch when nothing
   // actually changed.
   const setQuery = useCallback((next: ClientQueryParams) => {
     setQueryState((prev) => {
       if (
-        prev
-        && prev.page === next.page
+        prev.page === next.page
         && prev.pageSize === next.pageSize
         && (prev.search ?? '') === (next.search ?? '')
         && (prev.filter ?? '') === (next.filter ?? '')
@@ -265,9 +187,8 @@ export function useClients(options: UseClientsOptions = {}) {
   }, []);
 
   const listQuery = useQuery({
-    queryKey: keys.clients.list(query ?? DEFAULT_QUERY),
-    queryFn: () => fetchClientPage(query ?? DEFAULT_QUERY),
-    enabled: withList && query !== null,
+    queryKey: keys.clients.list(query),
+    queryFn: () => fetchClientPage(query),
     staleTime: Infinity,
     // List is sorted/paged server-side, so the WS patch can't add new or
     // re-sort rows; poll the current page to keep it live (pauses when hidden).
@@ -278,7 +199,6 @@ export function useClients(options: UseClientsOptions = {}) {
   const inboundOptionsQuery = useQuery({
     queryKey: keys.inbounds.options(),
     queryFn: fetchInboundOptions,
-    enabled: withList,
     staleTime: Infinity,
   });
 
@@ -296,7 +216,6 @@ export function useClients(options: UseClientsOptions = {}) {
       const validated = parseMsg(msg, OnlinesSchema, 'clients/onlines');
       return Array.isArray(validated.obj) ? validated.obj : [];
     },
-    enabled: withList,
     staleTime: Infinity,
   });
 
@@ -306,11 +225,7 @@ export function useClients(options: UseClientsOptions = {}) {
   const allGroups = listQuery.data?.groups ?? [];
   const fetched = listQuery.data !== undefined || listQuery.isError;
   const fetchError = listQuery.error ? (listQuery.error as Error).message : '';
-  // isFetching is deliberately NOT read here. Touching it makes it a tracked
-  // property, so the 5s refetchInterval notifies twice per cycle — two whole
-  // page renders even when structural sharing leaves the data identical, and
-  // each one bumps rc-table's immutable mark and re-runs every cell renderer.
-  // Callers that want a spinner for an explicit refresh drive it locally.
+  const loading = listQuery.isFetching;
   // Showing kept-previous data for a new key (filter/sort/page) — drives the
   // table overlay so the 5s background poll doesn't flash it.
   const transitioning = listQuery.isPlaceholderData;
@@ -343,18 +258,18 @@ export function useClients(options: UseClientsOptions = {}) {
   const expireDiff = ((defaults.expireDiff as number) ?? 0) * 86400000;
   const trafficDiff = ((defaults.trafficDiff as number) ?? 0) * 1073741824;
   const pageSize = (defaults.pageSize as number) ?? 0;
-  // pageSize 0 means "one long page", which is indistinguishable from "the
-  // settings have not arrived yet" — so callers need this flag to know when the
-  // configured page size is real. isFetched (not isSuccess) so a failed
-  // settings request still lets the page fall back and render.
-  const settingsReady = defaultsQuery.isFetched;
 
+  // Live summary: the client_stats WS event refreshes allClientStats every few
+  // seconds, so the top counters track reality without a page refresh. Falls
+  // back to the server-computed summary until the first event lands, and keeps
+  // the server's authoritative total for the headline count.
   const [allClientStats, setAllClientStats] = useState<ClientStatRow[]>([]);
-  const [clientSpeed, setClientSpeed] = useState<Record<string, ClientSpeedEntry>>({});
-  const summary = useMemo<ClientsSummary>(
-    () => pickClientsSummary(listQuery.data?.summary ?? DEFAULT_SUMMARY, allClientStats, new Set(onlines), expireDiff, trafficDiff),
-    [allClientStats, onlines, expireDiff, trafficDiff, listQuery.data?.summary],
-  );
+  const summary = useMemo<ClientsSummary>(() => {
+    const serverSummary = listQuery.data?.summary ?? DEFAULT_SUMMARY;
+    if (allClientStats.length === 0) return serverSummary;
+    const live = computeClientsSummary(allClientStats, new Set(onlines), expireDiff, trafficDiff);
+    return { ...live, total: serverSummary.total || live.total };
+  }, [allClientStats, onlines, expireDiff, trafficDiff, listQuery.data?.summary]);
 
   const invalidateAll = useCallback(
     () => {
@@ -628,49 +543,22 @@ export function useClients(options: UseClientsOptions = {}) {
 
   const applyTrafficEvent = useCallback((payload: unknown) => {
     if (!payload || typeof payload !== 'object') return;
-    const p = payload as {
-      onlineClients?: string[];
-      clientTraffics?: { email: string; up: number; down: number }[];
-    };
+    const p = payload as { onlineClients?: string[] };
     if (Array.isArray(p.onlineClients)) {
       queryClient.setQueryData(keys.clients.onlines(), p.onlineClients);
-    }
-    if (Array.isArray(p.clientTraffics)) {
-      // Xray reports a row per client whether or not it moved a byte, so most of
-      // this map used to be zeros. A missing entry and a zero entry render
-      // identically (isActiveSpeed treats both as inactive), so the zeros are
-      // dropped and an unchanged result returns the previous object — which lets
-      // React bail out of the update instead of re-rendering the table.
-      const next: Record<string, ClientSpeedEntry> = {};
-      for (const ct of p.clientTraffics) {
-        if (!ct || !ct.email) continue;
-        const up = ct.up || 0;
-        const down = ct.down || 0;
-        if (up === 0 && down === 0) continue;
-        next[ct.email] = {
-          up: up / TRAFFIC_POLL_INTERVAL_S,
-          down: down / TRAFFIC_POLL_INTERVAL_S,
-        };
-      }
-      setClientSpeed((prev) => (sameSpeedMap(prev, next) ? prev : next));
     }
   }, [queryClient]);
 
   const applyClientStatsEvent = useCallback((payload: unknown) => {
     if (!payload || typeof payload !== 'object') return;
-    const p = payload as { clients?: ClientStatRow[]; snapshot?: boolean };
+    const p = payload as { clients?: ClientStatRow[] };
     if (!Array.isArray(p.clients) || p.clients.length === 0) return;
-    if (p.snapshot !== false) {
-      const rows = p.clients;
-      setAllClientStats((prev) => (sameSummaryInputs(prev, rows) ? prev : rows));
-    }
-    const active = queryRef.current;
-    if (!active) return;
+    setAllClientStats(p.clients);
     const byEmail = new Map<string, ClientTraffic>();
     for (const row of p.clients) {
       if (row && row.email) byEmail.set(row.email, row);
     }
-    queryClient.setQueryData<ClientPageResponse>(keys.clients.list(active), (prev) => {
+    queryClient.setQueryData<ClientPageResponse>(keys.clients.list(queryRef.current), (prev) => {
       if (!prev) return prev;
       let touched = false;
       const next = prev.items.slice();
@@ -708,6 +596,7 @@ export function useClients(options: UseClientsOptions = {}) {
     setQuery,
     inbounds,
     onlines,
+    loading,
     transitioning,
     fetched,
     fetchError,
@@ -717,7 +606,6 @@ export function useClients(options: UseClientsOptions = {}) {
     expireDiff,
     trafficDiff,
     pageSize,
-    settingsReady,
     refresh,
     create,
     bulkCreate,
@@ -741,7 +629,6 @@ export function useClients(options: UseClientsOptions = {}) {
     exportClients,
     importClients,
     setEnable,
-    clientSpeed,
     applyTrafficEvent,
     applyClientStatsEvent,
   };

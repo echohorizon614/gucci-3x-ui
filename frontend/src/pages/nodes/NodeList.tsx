@@ -650,7 +650,7 @@ export default function NodeList({
           loading={loading}
           scroll={{ x: 'max-content' }}
           size="middle"
-          rowKey="key"
+          rowKey="id"
           rowSelection={dataSource.length > 1 ? {
             selectedRowKeys: selectedIds,
             onChange: (keys) => onSelectionChange(keys.filter((k) => typeof k === 'number') as number[]),

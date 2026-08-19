@@ -7,7 +7,7 @@ import type { InboundOption } from '@/hooks/useClients';
 import { formatInboundLabel } from '@/lib/inbounds/label';
 import type { BulkDetachResult } from '@/schemas/client';
 
-const MULTI_USER_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'hysteria', 'shadowsocks', 'wireguard', 'mtproto']);
+const MULTI_USER_PROTOCOLS = new Set(['vmess', 'vless', 'trojan', 'hysteria', 'shadowsocks']);
 
 interface BulkDetachInboundsModalProps {
   open: boolean;
@@ -96,7 +96,7 @@ export default function BulkDetachInboundsModal({
               onChange={setTargetIds}
               options={targetOptions}
               placeholder={t('pages.clients.detachFromInboundsTargets')}
-              showSearch={{ optionFilterProp: 'label' }}
+              optionFilterProp="label"
               autoFocus
             />
           </>

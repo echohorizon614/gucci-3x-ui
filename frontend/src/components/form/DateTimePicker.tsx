@@ -121,9 +121,7 @@ export default function DateTimePicker({
     <DatePicker
       value={value}
       onChange={(next) => onChange(next || null)}
-      onCalendarChange={(next) => onChange((Array.isArray(next) ? next[0] : next) || null)}
       showTime={showTime ? { format: 'HH:mm:ss' } : false}
-      needConfirm={false}
       format={format}
       placeholder={placeholder}
       disabled={disabled}

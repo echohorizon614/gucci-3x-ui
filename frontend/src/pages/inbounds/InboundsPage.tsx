@@ -24,7 +24,7 @@ import {
 
 import { HttpUtil, SizeFormatter, RandomUtil } from '@/utils';
 import { createDefaultInboundSettings } from '@/lib/xray/inbound-defaults';
-import { genInboundLinks, genWireguardLinks, preferPublicHost } from '@/lib/xray/inbound-link';
+import { genInboundLinks, preferPublicHost } from '@/lib/xray/inbound-link';
 import { inboundFromDb } from '@/lib/xray/inbound-from-db';
 import { coerceInboundJsonField, type DBInbound } from '@/models/dbinbound';
 import { useTheme } from '@/hooks/useTheme';
@@ -33,7 +33,6 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { useNodesQuery } from '@/api/queries/useNodesQuery';
 import AppSidebar from '@/layouts/AppSidebar';
 const TextModal = lazy(() => import('@/components/feedback/TextModal'));
-import type { TextModalTab } from '@/components/feedback/TextModal';
 const PromptModal = lazy(() => import('@/components/feedback/PromptModal'));
 
 import { useInbounds } from './useInbounds';
@@ -149,7 +148,6 @@ export default function InboundsPage() {
   const [textContent, setTextContent] = useState('');
   const [textFileName, setTextFileName] = useState('');
   const [textJson, setTextJson] = useState(false);
-  const [textTabs, setTextTabs] = useState<TextModalTab[] | undefined>(undefined);
 
   const [promptOpen, setPromptOpen] = useState(false);
   const [promptTitle, setPromptTitle] = useState('');
@@ -168,12 +166,11 @@ export default function InboundsPage() {
   const infoNodeAddress = useMemo(() => hostOverrideFor(infoDbInbound), [infoDbInbound, hostOverrideFor]);
   const qrNodeAddress = useMemo(() => hostOverrideFor(qrDbInbound), [qrDbInbound, hostOverrideFor]);
 
-  const openText = useCallback((opts: { title: string; content: string; fileName?: string; json?: boolean; tabs?: TextModalTab[] }) => {
+  const openText = useCallback((opts: { title: string; content: string; fileName?: string; json?: boolean }) => {
     setTextTitle(opts.title);
     setTextContent(opts.content);
     setTextFileName(opts.fileName || '');
     setTextJson(opts.json || false);
-    setTextTabs(opts.tabs);
     setTextOpen(true);
   }, []);
 
@@ -262,24 +259,15 @@ export default function InboundsPage() {
 
   const exportInboundLinks = useCallback((dbInbound: DBInbound) => {
     const projected = checkFallback(dbInbound);
-    const genInput = {
-      inbound: inboundFromDb(projected),
-      remark: projected.remark,
-      hostOverride: hostOverrideFor(dbInbound),
-      fallbackHostname: preferPublicHost(window.location.hostname, subSettings.publicHost),
-    };
-    const content = genInboundLinks(genInput);
-    const tabs: TextModalTab[] | undefined = projected.isWireguard
-      ? [
-        { key: 'config', label: t('pages.clients.config'), content },
-        { key: 'links', label: t('pages.clients.tabLinks'), content: genWireguardLinks(genInput) },
-      ]
-      : undefined;
     openText({
       title: t('pages.inbounds.exportLinksTitle'),
-      content,
+      content: genInboundLinks({
+        inbound: inboundFromDb(projected),
+        remark: projected.remark,
+        hostOverride: hostOverrideFor(dbInbound),
+        fallbackHostname: preferPublicHost(window.location.hostname, subSettings.publicHost),
+      }),
       fileName: projected.remark || 'inbound',
-      tabs,
     });
   }, [checkFallback, hostOverrideFor, subSettings.publicHost, openText, t]);
 
@@ -718,7 +706,6 @@ export default function InboundsPage() {
             content={textContent}
             fileName={textFileName}
             json={textJson}
-            tabs={textTabs}
           />
         </LazyMount>
         <LazyMount when={promptOpen}>

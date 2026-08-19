@@ -40,26 +40,6 @@ func (ctx remarkContext) configName() string {
 // underscores only, so ordinary braces in a remark are left untouched.
 var remarkVarRe = regexp.MustCompile(`\{\{([A-Z_]+)\}\}`)
 
-// remarkToken is one {{TOKEN}} occurrence: its name and the byte range it spans
-// in the segment it was found in.
-type remarkToken struct {
-	name  string
-	start int
-	end   int
-}
-
-// remarkTokens locates every {{TOKEN}} in seg. Both the template-level filter and
-// the value-level expansion walk a segment through this, so they share one notion
-// of where a token begins and ends and what the literal text between two of them is.
-func remarkTokens(seg string) []remarkToken {
-	locs := remarkVarRe.FindAllStringSubmatchIndex(seg, -1)
-	tokens := make([]remarkToken, len(locs))
-	for i, loc := range locs {
-		tokens[i] = remarkToken{name: seg[loc[2]:loc[3]], start: loc[0], end: loc[1]}
-	}
-	return tokens
-}
-
 // unlimitedMark is the value the human-readable quota/expiry tokens render when
 // the client has no limit. A segment built only around such a token carries no
 // information, so it is dropped rather than printed as "∞" (see expandRemarkVars).
@@ -127,9 +107,7 @@ func translateUISingleBrackets(template string) string {
 // value. Unknown tokens resolve to "" (never the literal text). The template is
 // split on "|" into segments: a segment whose only value is an unlimited quota
 // or expiry (∞) drops out whole — decoration and separator included — so an
-// unlimited client gets "host" instead of "host|📊∞|⏳∞D". Inside a surviving
-// segment expandSegment also elides a hyphen separator an empty token would
-// leave dangling.
+// unlimited client gets "host" instead of "host|📊∞|⏳∞D".
 func expandRemarkVars(template string, ctx remarkContext) string {
 	template = translateUISingleBrackets(template)
 	if !strings.Contains(template, "{{") {
@@ -146,48 +124,23 @@ func expandRemarkVars(template string, ctx remarkContext) string {
 }
 
 // expandSegment expands one "|" segment and reports whether it should be dropped.
-// A segment that contains tokens is dropped when none of them resolve to a real
-// value — whether because they render the unlimited (∞) mark or the empty string
-// — so it leaves no stray "|" separator or dangling decoration. A segment mixing,
-// say, {{EMAIL}} with {{TRAFFIC_LEFT}} is kept, and a pure-literal segment (no
-// tokens) is always kept.
-//
-// A hyphen standing alone between two adjacent tokens is treated as their
-// separator and elided when no token before it has produced a value yet or when
-// the token after it resolves to nothing. "{{INBOUND}}-{{EMAIL}}" gives "john"
-// for an inbound with no remark, "🌐{{INBOUND}}-{{EMAIL}}" gives "🌐john" so
-// leading decoration does not keep the separator alive, and
-// "{{EMAIL}}-{{INBOUND}}-{{EMAIL}}" keeps a single separator when the middle
-// token is empty. A hyphen anywhere else in the segment is literal text and is
-// kept as written.
+// It drops only when the segment carries an unlimited (∞) quota/expiry token and
+// no other token in it resolves to a non-empty value — so a segment mixing, say,
+// {{EMAIL}} with {{TRAFFIC_LEFT}} is always kept.
 func expandSegment(seg string, ctx remarkContext) (string, bool) {
-	tokens := remarkTokens(seg)
-	hasToken, hasOtherValue := len(tokens) > 0, false
-	values := make([]string, len(tokens))
-	for i, tok := range tokens {
-		val := remarkVarValue(tok.name, ctx)
-		values[i] = val
-		if val != "" && (!unlimitedDropTokens[tok.name] || val != unlimitedMark) {
+	hasUnlimited, hasOtherValue := false, false
+	out := remarkVarRe.ReplaceAllStringFunc(seg, func(m string) string {
+		token := m[2 : len(m)-2]
+		val := remarkVarValue(token, ctx)
+		switch {
+		case unlimitedDropTokens[token] && val == unlimitedMark:
+			hasUnlimited = true
+		case val != "":
 			hasOtherValue = true
 		}
-	}
-
-	var result strings.Builder
-	start, wroteValue := 0, false
-	for i, tok := range tokens {
-		result.WriteString(seg[start:tok.start])
-		result.WriteString(values[i])
-		wroteValue = wroteValue || values[i] != ""
-		start = tok.end
-		if i+1 < len(tokens) {
-			between := seg[start:tokens[i+1].start]
-			if strings.TrimSpace(between) == "-" && (!wroteValue || values[i+1] == "") {
-				start = tokens[i+1].start
-			}
-		}
-	}
-	result.WriteString(seg[start:])
-	return result.String(), hasToken && !hasOtherValue
+		return val
+	})
+	return out, hasUnlimited && !hasOtherValue
 }
 
 func remarkVarValue(token string, ctx remarkContext) string {
@@ -506,8 +459,11 @@ func (s *SubService) statsForClient(inbound *model.Inbound, client model.Client)
 // needed when a global remark template references client-only tokens. Falls back
 // to an email-only client if not found.
 func (s *SubService) lookupClient(inbound *model.Inbound, email string) model.Client {
-	if c, ok := s.clientForLink(inbound, email); ok {
-		return c
+	clients, _ := s.inboundService.GetClients(inbound)
+	for _, c := range clients {
+		if c.Email == email {
+			return c
+		}
 	}
 	return model.Client{Email: email}
 }
@@ -558,17 +514,11 @@ func filterRemarkTemplate(template string, remove map[string]bool) string {
 	return strings.Join(kept, "|")
 }
 
-// filterRemarkSegment drops whole token categories from one segment while it is
-// still a template, before any value is known. Literal text touching a removed
-// token goes with it and the surviving runs rejoin with a space, so filtering the
-// usage tokens out of "{{EMAIL}} 📊{{TRAFFIC_LEFT}}" leaves "{{EMAIL}}". This is
-// the template-level counterpart to expandSegment, which works one layer later on
-// tokens that survive here but resolve to an empty value.
 func filterRemarkSegment(seg string, remove map[string]bool) string {
-	tokens := remarkTokens(seg)
+	locs := remarkVarRe.FindAllStringSubmatchIndex(seg, -1)
 	hasRemove := false
-	for _, tok := range tokens {
-		if remove[tok.name] {
+	for _, loc := range locs {
+		if remove[seg[loc[2]:loc[3]]] {
 			hasRemove = true
 			break
 		}
@@ -578,28 +528,28 @@ func filterRemarkSegment(seg string, remove map[string]bool) string {
 	}
 	runs := make([]string, 0, 2)
 	runStart, leftRemoved := 0, false
-	for _, tok := range tokens {
-		if !remove[tok.name] {
+	for _, loc := range locs {
+		if !remove[seg[loc[2]:loc[3]]] {
 			continue
 		}
-		runs = appendKeptRun(runs, seg[runStart:tok.start], leftRemoved, true)
-		runStart, leftRemoved = tok.end, true
+		runs = appendKeptRun(runs, seg[runStart:loc[0]], leftRemoved, true)
+		runStart, leftRemoved = loc[1], true
 	}
 	runs = appendKeptRun(runs, seg[runStart:], leftRemoved, false)
 	return strings.Join(runs, " ")
 }
 
 func appendKeptRun(runs []string, run string, leftRemoved, rightRemoved bool) []string {
-	tokens := remarkTokens(run)
-	if len(tokens) == 0 {
+	locs := remarkVarRe.FindAllStringSubmatchIndex(run, -1)
+	if len(locs) == 0 {
 		return runs
 	}
 	start, end := 0, len(run)
 	if leftRemoved {
-		start = tokens[0].start
+		start = locs[0][0]
 	}
 	if rightRemoved {
-		end = tokens[len(tokens)-1].end
+		end = locs[len(locs)-1][1]
 	}
 	if frag := strings.TrimSpace(run[start:end]); frag != "" {
 		runs = append(runs, frag)
@@ -613,11 +563,7 @@ func (s *SubService) effectiveTemplate(email string) string {
 		s.usageShown = map[string]bool{}
 	}
 	if s.usageShown[email] {
-		remove := firstLinkOnlyBodyTokens
-		if s.showIdentityOnAllLinks {
-			remove = usageInfoTokens
-		}
-		return filterRemarkTemplate(translated, remove)
+		return filterRemarkTemplate(translated, firstLinkOnlyBodyTokens)
 	}
 	s.usageShown[email] = true
 	return translated

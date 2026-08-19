@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ComponentType, CSSProperties } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ComponentType } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Drawer, Layout, Menu } from 'antd';
 import type { MenuProps } from 'antd';
@@ -39,14 +39,11 @@ import { pauseAnimationsUntilLeave, useTheme } from '@/hooks/useTheme';
 import { useAllSettings } from '@/api/queries/useAllSettings';
 import './AppSidebar.css';
 
+const SIDEBAR_COLLAPSED_KEY = 'isSidebarCollapsed';
 const DONATE_URL = 'https://donate.sanaei.dev/';
 const DOCS_URL = 'https://docs.sanaei.dev/';
 const REPO_URL = 'https://github.com/MHSanaei/3x-ui';
 const LOGOUT_KEY = '__logout__';
-const RAIL_WIDTH = 72;
-const railStyle = { '--sider-rail': `${RAIL_WIDTH}px` } as CSSProperties;
-
-let hoveredAcrossRemounts = false;
 
 type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing';
 
@@ -64,6 +61,14 @@ const iconByName: Record<IconName, ComponentType> = {
   outbound: ExportOutlined,
   routing: SwapOutlined,
 };
+
+function readCollapsed(): boolean {
+  try {
+    return JSON.parse(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) || 'false');
+  } catch {
+    return false;
+  }
+}
 
 function DonateButton({ ariaLabel }: { ariaLabel: string }) {
   return (
@@ -103,7 +108,7 @@ function VersionBadge({ version, collapsed }: { version: string; collapsed?: boo
       href={REPO_URL}
       target="_blank"
       rel="noopener noreferrer"
-      className="sider-version"
+      className={`sider-version${collapsed ? ' is-collapsed' : ''}`}
       aria-label={`GitHub ${label}`}
       title={label}
     >
@@ -143,23 +148,8 @@ export default function AppSidebar() {
   const { allSetting } = useAllSettings();
   const showSubFormats = !!(allSetting.subJsonEnable || allSetting.subClashEnable);
 
-  const [hovered, setHovered] = useState(() => hoveredAcrossRemounts);
+  const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsed());
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const railCollapsed = !hovered;
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  const updateHovered = useCallback((value: boolean) => {
-    hoveredAcrossRemounts = value;
-    setHovered(value);
-  }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      const el = rootRef.current;
-      if (el) updateHovered(el.matches(':hover'));
-    }, 150);
-    return () => window.clearTimeout(timer);
-  }, [updateHovered]);
 
   const currentTheme: 'light' | 'dark' = isDark ? 'dark' : 'light';
   const panelVersion = window.X_UI_CUR_VER || '';
@@ -228,7 +218,7 @@ export default function AppSidebar() {
       if (tab.key === '/xray') {
         return { key: tab.key, icon: <Icon />, label: tab.title, children: xrayChildren };
       }
-      return { key: tab.key, icon: <Icon />, label: tab.title, title: '' };
+      return { key: tab.key, icon: <Icon />, label: tab.title };
     }),
   [settingsChildren, xrayChildren]);
 
@@ -245,6 +235,13 @@ export default function AppSidebar() {
     openLink(String(key));
   }, [openLink]);
 
+  const onSiderCollapse = useCallback((isCollapsed: boolean, type: 'clickTrigger' | 'responsive') => {
+    if (type === 'clickTrigger') {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
+      setCollapsed(isCollapsed);
+    }
+  }, []);
+
   const cycleTheme = useCallback((id: string) => {
     pauseAnimationsUntilLeave(id);
     if (!isDark) {
@@ -259,24 +256,20 @@ export default function AppSidebar() {
   }, [isDark, isUltra, toggleTheme, toggleUltra]);
 
   return (
-    <div
-      ref={rootRef}
-      className="ant-sidebar"
-      style={railStyle}
-      onMouseEnter={() => updateHovered(true)}
-      onMouseLeave={() => updateHovered(false)}
-    >
+    <div className="ant-sidebar">
       <Layout.Sider
         theme={currentTheme}
         width={220}
-        collapsedWidth={RAIL_WIDTH}
-        collapsed={railCollapsed}
+        collapsible
+        collapsed={collapsed}
+        breakpoint="md"
+        onCollapse={onSiderCollapse}
       >
-        <div className="sider-brand">
+        <div className={`sider-brand${collapsed ? ' sider-brand-collapsed' : ''}`}>
           <div className="brand-block">
             <span className="brand-text">GUCCI</span>
           </div>
-          {!railCollapsed && (
+          {!collapsed && (
             <div className="brand-actions">
               <DocsButton ariaLabel={t('menu.docs') || 'Documentation'} />
               <DonateButton ariaLabel={t('menu.donate') || 'Donate'} />
@@ -294,7 +287,7 @@ export default function AppSidebar() {
           theme={currentTheme}
           mode="inline"
           selectedKeys={[selectedKey]}
-          openKeys={railCollapsed ? undefined : openKeys}
+          openKeys={collapsed ? undefined : openKeys}
           onOpenChange={(keys) => setOpenKeys(keys as string[])}
           className="sider-nav"
           items={toMenuItems(navItems)}
@@ -309,7 +302,7 @@ export default function AppSidebar() {
           onClick={onMenuClick}
         />
         <div className="sider-footer">
-          <VersionBadge version={panelVersion} collapsed={railCollapsed} />
+          <VersionBadge version={panelVersion} collapsed={collapsed} />
         </div>
       </Layout.Sider>
 

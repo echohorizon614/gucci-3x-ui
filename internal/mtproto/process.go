@@ -1,10 +1,7 @@
-// Package mtproto manages mtg-multi (github.com/mhsanaei/mtg-multi) sidecar
-// processes that serve MTProto FakeTLS proxies. Xray-core has no mtproto
-// protocol, so mtproto inbounds are run as standalone mtg processes — one
-// process per inbound, each serving every active client's secret through the
-// mtg-multi [secrets] section — entirely outside the Xray config and lifecycle.
-// A client edit is hot-applied via the fork's POST /reload endpoint so live
-// connections survive; the manager falls back to a restart on older binaries.
+// Package mtproto manages mtg (github.com/9seconds/mtg) sidecar processes that
+// serve MTProto FakeTLS proxies. Xray-core has no mtproto protocol, so mtproto
+// inbounds are run as standalone mtg processes — one process per inbound —
+// entirely outside the Xray config and lifecycle.
 package mtproto
 
 import (
@@ -109,7 +106,6 @@ func (w *procLogWriter) LastLine() string {
 
 // Process wraps a single mtg process invocation for one mtproto inbound.
 type Process struct {
-	mu              sync.RWMutex
 	cmd             *exec.Cmd
 	done            chan struct{}
 	configPath      string
@@ -127,20 +123,20 @@ func newProcess(configPath, label string) *Process {
 
 // IsRunning reports whether the mtg process is currently running.
 func (p *Process) IsRunning() bool {
-	p.mu.RLock()
-	cmd, done := p.cmd, p.done
-	p.mu.RUnlock()
-	if cmd == nil || cmd.Process == nil {
+	if p.cmd == nil || p.cmd.Process == nil {
 		return false
 	}
-	if done != nil {
+	if p.done != nil {
 		select {
-		case <-done:
+		case <-p.done:
 			return false
 		default:
 		}
 	}
-	return true
+	if p.cmd.ProcessState == nil {
+		return true
+	}
+	return false
 }
 
 // GetResult returns the last log line or the exit error from the mtg process.
@@ -148,11 +144,8 @@ func (p *Process) GetResult() string {
 	if line := p.logWriter.LastLine(); line != "" {
 		return line
 	}
-	p.mu.RLock()
-	exitErr := p.exitErr
-	p.mu.RUnlock()
-	if exitErr != nil {
-		return exitErr.Error()
+	if p.exitErr != nil {
+		return p.exitErr.Error()
 	}
 	return ""
 }
@@ -165,27 +158,22 @@ func (p *Process) Start() error {
 	cmd := exec.CommandContext(context.Background(), GetBinaryPath(), "run", p.configPath)
 	cmd.Stdout = p.logWriter
 	cmd.Stderr = p.logWriter
-	done := make(chan struct{})
-	p.mu.Lock()
 	p.cmd = cmd
-	p.done = done
+	p.done = make(chan struct{})
 	p.exitErr = nil
-	p.mu.Unlock()
 	p.intentionalStop.Store(false)
 	if err := cmd.Start(); err != nil {
-		close(done)
-		p.mu.Lock()
+		close(p.done)
 		p.cmd = nil
-		p.mu.Unlock()
 		return err
 	}
 	attachChildLifetime(cmd)
-	go p.wait(cmd, done)
+	go p.wait(cmd)
 	return nil
 }
 
-func (p *Process) wait(cmd *exec.Cmd, done chan struct{}) {
-	defer close(done)
+func (p *Process) wait(cmd *exec.Cmd) {
+	defer close(p.done)
 	err := cmd.Wait()
 	p.logWriter.Flush()
 	if err == nil || p.intentionalStop.Load() {
@@ -193,18 +181,12 @@ func (p *Process) wait(cmd *exec.Cmd, done chan struct{}) {
 	}
 	if runtime.GOOS == "windows" {
 		if strings.Contains(strings.ToLower(err.Error()), "exit status 1") {
-			p.setExitErr(err)
+			p.exitErr = err
 			return
 		}
 	}
 	logger.Errorf("mtproto: mtg process exited: %v", err)
-	p.setExitErr(err)
-}
-
-func (p *Process) setExitErr(err error) {
-	p.mu.Lock()
 	p.exitErr = err
-	p.mu.Unlock()
 }
 
 // Stop terminates the running mtg process gracefully, falling back to a kill.
@@ -213,46 +195,40 @@ func (p *Process) Stop() error {
 		return errors.New("mtg is not running")
 	}
 	p.intentionalStop.Store(true)
-	p.mu.RLock()
-	cmd, done := p.cmd, p.done
-	p.mu.RUnlock()
-	if cmd == nil || cmd.Process == nil {
-		return errors.New("mtg is not running")
-	}
 
 	if runtime.GOOS == "windows" {
-		if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+		if err := p.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 			return err
 		}
-		return waitForExit(done, forceStopTimeout)
+		return p.waitForExit(forceStopTimeout)
 	}
 
-	if err := cmd.Process.Signal(syscall.SIGTERM); err != nil {
+	if err := p.cmd.Process.Signal(syscall.SIGTERM); err != nil {
 		if errors.Is(err, os.ErrProcessDone) {
-			return waitForExit(done, forceStopTimeout)
+			return p.waitForExit(forceStopTimeout)
 		}
 		return err
 	}
 
-	if err := waitForExit(done, gracefulStopTimeout); err == nil {
+	if err := p.waitForExit(gracefulStopTimeout); err == nil {
 		return nil
 	}
 
 	logger.Warning("mtproto: mtg did not stop after SIGTERM, killing process")
-	if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+	if err := p.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 		return err
 	}
-	return waitForExit(done, forceStopTimeout)
+	return p.waitForExit(forceStopTimeout)
 }
 
-func waitForExit(done <-chan struct{}, timeout time.Duration) error {
-	if done == nil {
+func (p *Process) waitForExit(timeout time.Duration) error {
+	if p.done == nil {
 		return nil
 	}
 	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	select {
-	case <-done:
+	case <-p.done:
 		return nil
 	case <-timer.C:
 		return fmt.Errorf("timed out waiting for mtg process to stop after %s", timeout)

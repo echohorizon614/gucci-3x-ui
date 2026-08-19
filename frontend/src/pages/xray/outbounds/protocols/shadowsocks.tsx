@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next';
-import { Input, InputNumber, Select, Switch } from 'antd';
+import { Form, Input, InputNumber, Select, Switch } from 'antd';
 
-import { FormField, rhfZodValidate } from '@/components/form/rhf';
 import { ShadowsocksOutboundFormSettingsSchema } from '@/schemas/forms/outbound-form';
 import { SSMethodSchema } from '@/schemas/protocols/shared/shadowsocks';
+import { antdRule } from '@/utils/zodForm';
 
 import { SS_METHOD_OPTIONS } from '../outbound-form-constants';
 
@@ -11,30 +11,30 @@ export default function ShadowsocksFields() {
   const { t } = useTranslation();
   return (
     <>
-      <FormField
+      <Form.Item
         label={t('password')}
         name={['settings', 'password']}
-        rules={{ validate: rhfZodValidate(ShadowsocksOutboundFormSettingsSchema.shape.password) }}
+        rules={[antdRule(ShadowsocksOutboundFormSettingsSchema.shape.password, t)]}
       >
         <Input />
-      </FormField>
-      <FormField
+      </Form.Item>
+      <Form.Item
         label={t('encryption')}
         name={['settings', 'method']}
-        rules={{ validate: rhfZodValidate(SSMethodSchema) }}
+        rules={[antdRule(SSMethodSchema, t)]}
       >
         <Select options={SS_METHOD_OPTIONS} />
-      </FormField>
-      <FormField
+      </Form.Item>
+      <Form.Item
         label={t('pages.xray.outboundForm.udpOverTcp')}
         name={['settings', 'uot']}
-        valueProp="checked"
+        valuePropName="checked"
       >
         <Switch />
-      </FormField>
-      <FormField label={t('pages.xray.outboundForm.uotVersion')} name={['settings', 'UoTVersion']}>
+      </Form.Item>
+      <Form.Item label={t('pages.xray.outboundForm.uotVersion')} name={['settings', 'UoTVersion']}>
         <InputNumber min={1} max={2} />
-      </FormField>
+      </Form.Item>
     </>
   );
 }

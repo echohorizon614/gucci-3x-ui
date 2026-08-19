@@ -26,15 +26,7 @@ func clientsSettings(t *testing.T, clients []model.Client) string {
 	if err != nil {
 		t.Fatalf("marshal settings: %v", err)
 	}
-	var out map[string]any
-	if err := json.Unmarshal(b, &out); err != nil {
-		t.Fatalf("unmarshal settings: %v", err)
-	}
-	b2, err := json.MarshalIndent(out, "", "  ")
-	if err != nil {
-		t.Fatalf("marshal settings again: %v", err)
-	}
-	return string(b2)
+	return string(b)
 }
 
 func emailsOf(clients []model.Client) []string {

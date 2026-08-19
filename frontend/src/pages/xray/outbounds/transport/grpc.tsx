@@ -1,31 +1,29 @@
 import { useTranslation } from 'react-i18next';
-import { Input, Switch } from 'antd';
-
-import { FormField } from '@/components/form/rhf';
+import { Form, Input, Switch } from 'antd';
 
 export default function GrpcForm() {
   const { t } = useTranslation();
   return (
     <>
-      <FormField
+      <Form.Item
         label={t('pages.inbounds.form.serviceName')}
         name={['streamSettings', 'grpcSettings', 'serviceName']}
       >
         <Input />
-      </FormField>
-      <FormField
+      </Form.Item>
+      <Form.Item
         label={t('pages.inbounds.form.authority')}
         name={['streamSettings', 'grpcSettings', 'authority']}
       >
         <Input />
-      </FormField>
-      <FormField
+      </Form.Item>
+      <Form.Item
         label={t('pages.inbounds.form.multiMode')}
         name={['streamSettings', 'grpcSettings', 'multiMode']}
-        valueProp="checked"
+        valuePropName="checked"
       >
         <Switch />
-      </FormField>
+      </Form.Item>
     </>
   );
 }

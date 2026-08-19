@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Button, Empty, Input, InputNumber, Modal, Select, Space, Switch, Table, Tabs } from 'antd';
+import { Button, Empty, Input, InputNumber, Modal, Select, Space, Switch, Table, Tabs } from 'antd';
 import {
   DatabaseOutlined,
   DeleteOutlined,
@@ -11,7 +11,6 @@ import {
   SettingOutlined,
 } from '@ant-design/icons';
 
-import { onNumber } from '@/utils/onNumber';
 import { SettingListItem } from '@/components/ui';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { catTabLabel } from '@/pages/settings/catTabLabel';
@@ -42,23 +41,6 @@ export default function DnsTab({ templateSettings, setTemplateSettings }: DnsTab
 
   const dns = (templateSettings?.dns as DnsConfig | undefined) ?? null;
   const dnsEnabled = !!dns;
-  const sourceHosts = dns?.hosts;
-  const incomingHosts = JSON.stringify(sourceHosts ?? {});
-  const lastWrittenHostsRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!dnsEnabled) {
-      lastWrittenHostsRef.current = '{}';
-      setHostsList([]);
-      return;
-    }
-    if (incomingHosts === lastWrittenHostsRef.current) return;
-    lastWrittenHostsRef.current = incomingHosts;
-    setHostsList(Object.entries(sourceHosts ?? {}).map(([domain, values]) => ({
-      domain,
-      values: Array.isArray(values) ? [...values] : [String(values)],
-    })));
-  }, [dnsEnabled, incomingHosts, sourceHosts]);
 
   const mutate = useCallback(
     (mutator: (next: XraySettingsValue) => void) => {
@@ -96,18 +78,32 @@ export default function DnsTab({ templateSettings, setTemplateSettings }: DnsTab
     });
   }
 
-  function syncHosts(next: HostRow[]) {
-    const obj: Record<string, string | string[]> = {};
-    for (const row of next) {
-      if (!row.domain) continue;
-      const vals = (row.values || []).filter(Boolean);
-      if (vals.length === 0) continue;
-      obj[row.domain] = vals.length === 1 ? vals[0] : vals;
+  useEffect(() => {
+    if (!dns) {
+      setHostsList([]);
+      return;
     }
-    lastWrittenHostsRef.current = JSON.stringify(obj);
+    const src = dns.hosts || {};
+    setHostsList(
+      Object.entries(src).map(([domain, val]) => ({
+        domain,
+        values: Array.isArray(val) ? [...val] : [String(val)],
+      })),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dnsEnabled]);
+
+  function syncHosts(next: HostRow[]) {
     setHostsList(next);
     mutate((tt) => {
       if (!tt.dns) return;
+      const obj: Record<string, string | string[]> = {};
+      for (const row of next) {
+        if (!row.domain) continue;
+        const vals = (row.values || []).filter(Boolean);
+        if (vals.length === 0) continue;
+        obj[row.domain] = vals.length === 1 ? vals[0] : vals;
+      }
       if (Object.keys(obj).length > 0) {
         (tt.dns as DnsConfig).hosts = obj;
       } else if ('hosts' in (tt.dns as DnsConfig)) {
@@ -241,12 +237,6 @@ export default function DnsTab({ templateSettings, setTemplateSettings }: DnsTab
             />
             {dnsEnabled && (
               <>
-                <Alert
-                  type="warning"
-                  showIcon
-                  title={t('pages.xray.dns.dnsLeakWarning')}
-                  style={{ marginBottom: 12 }}
-                />
                 <SettingListItem
                   paddings="small"
                   title={t('pages.xray.dns.tag')}
@@ -315,7 +305,7 @@ export default function DnsTab({ templateSettings, setTemplateSettings }: DnsTab
                       min={0}
                       step={60}
                       style={{ width: '100%' }}
-                      onChange={onNumber((v) => setDnsField('serveExpiredTTL', v))}
+                      onChange={(v) => setDnsField('serveExpiredTTL', Number(v) || 0)}
                     />
                   }
                 />

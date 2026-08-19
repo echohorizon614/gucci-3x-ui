@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
 	"time"
-	"unicode"
-	"unicode/utf8"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/eventbus"
 	"github.com/mhsanaei/3x-ui/v3/internal/logger"
@@ -47,34 +46,9 @@ type XrayMetricsService struct {
 	state    xrayMetricsState
 	client   *http.Client
 	obsByTag map[string]ObsTagSnapshot
-	health   map[string]outboundHealth
 }
 
-// outboundHealth debounces observatory flapping. Xray flips an outbound's
-// alive flag on a single failed probe, so raw transitions produce a storm of
-// down/up notifications on a flaky link. We instead require failStreak to reach
-// the configured threshold (consecutive FAILED probes, tracked per new probe
-// via lastTry) before publishing outbound.down, and only publish outbound.up
-// once a down has actually been notified.
-type outboundHealth struct {
-	lastTry    int64
-	failStreak int
-	notified   bool
-}
-
-const maxObsTagLength = 128
-
-func validObsTag(tag string) bool {
-	if tag == "" || len(tag) > maxObsTagLength || !utf8.ValidString(tag) {
-		return false
-	}
-	for _, r := range tag {
-		if unicode.IsControl(r) {
-			return false
-		}
-	}
-	return true
-}
+var validObsTag = regexp.MustCompile(`^[a-zA-Z0-9._\-]+$`)
 
 func obsHistoryKey(tag string) string {
 	return "xrObs." + tag + ".delay"
@@ -115,7 +89,7 @@ func (s *XrayMetricsService) ObservatorySnapshot() []ObsTagSnapshot {
 }
 
 func (s *XrayMetricsService) HasObservatoryTag(tag string) bool {
-	if !validObsTag(tag) {
+	if !validObsTag.MatchString(tag) {
 		return false
 	}
 	s.mu.RLock()
@@ -125,7 +99,7 @@ func (s *XrayMetricsService) HasObservatoryTag(tag string) bool {
 }
 
 func (s *XrayMetricsService) AggregateObservatory(tag string, bucketSeconds, maxPoints int) []map[string]any {
-	if !validObsTag(tag) {
+	if !validObsTag.MatchString(tag) {
 		return []map[string]any{}
 	}
 	return xrayMetrics.aggregate(obsHistoryKey(tag), bucketSeconds, maxPoints)
@@ -225,7 +199,7 @@ func (s *XrayMetricsService) applyObservatory(t time.Time, entries map[string]ra
 		if tag == "" {
 			tag = key
 		}
-		if !validObsTag(tag) {
+		if !validObsTag.MatchString(tag) {
 			continue
 		}
 		snap := ObsTagSnapshot{
@@ -240,57 +214,32 @@ func (s *XrayMetricsService) applyObservatory(t time.Time, entries map[string]ra
 		xrayMetrics.append(obsHistoryKey(tag), t, float64(e.Delay))
 	}
 
-	threshold := 3
-	if v, err := s.settingService.GetOutboundDownThreshold(); err == nil && v > 0 {
-		threshold = v
-	}
-
 	s.mu.Lock()
-	// Debounce observatory flapping into stable down/up notifications.
+	// Detect transitions and publish events
 	if eventBus != nil {
-		if s.health == nil {
-			s.health = make(map[string]outboundHealth, len(next))
-		}
-		for tag, cur := range next {
-			// React only to a genuinely new probe attempt (lastTry advanced).
-			// The sampler polls far more often than xray probes, so counting
-			// samples instead of probes would trip the threshold instantly.
-			h := s.health[tag]
-			if cur.LastTryTime == 0 || cur.LastTryTime == h.lastTry {
+		// Check existing tags for state changes
+		for tag, old := range s.obsByTag {
+			cur, exists := next[tag]
+			if !exists {
+				// Tag disappeared from observatory — skip, not a real failure
 				continue
 			}
-			h.lastTry = cur.LastTryTime
-			if cur.Alive {
-				if h.notified {
-					eventBus.Publish(eventbus.Event{
-						Type:   eventbus.EventOutboundUp,
-						Source: tag,
-						Data:   &eventbus.OutboundHealthData{Delay: cur.Delay},
-					})
+			if old.Alive && !cur.Alive {
+				errMsg := ""
+				if cur.Delay < 0 {
+					errMsg = "probe failed"
 				}
-				h.failStreak = 0
-				h.notified = false
-			} else {
-				h.failStreak++
-				if h.failStreak >= threshold && !h.notified {
-					errMsg := ""
-					if cur.Delay < 0 {
-						errMsg = "probe failed"
-					}
-					eventBus.Publish(eventbus.Event{
-						Type:   eventbus.EventOutboundDown,
-						Source: tag,
-						Data:   &eventbus.OutboundHealthData{Delay: cur.Delay, Error: errMsg},
-					})
-					h.notified = true
-				}
-			}
-			s.health[tag] = h
-		}
-		// Forget tags that vanished from the observatory.
-		for tag := range s.health {
-			if _, ok := next[tag]; !ok {
-				delete(s.health, tag)
+				eventBus.Publish(eventbus.Event{
+					Type:   eventbus.EventOutboundDown,
+					Source: tag,
+					Data:   &eventbus.OutboundHealthData{Delay: cur.Delay, Error: errMsg},
+				})
+			} else if !old.Alive && cur.Alive {
+				eventBus.Publish(eventbus.Event{
+					Type:   eventbus.EventOutboundUp,
+					Source: tag,
+					Data:   &eventbus.OutboundHealthData{Delay: cur.Delay},
+				})
 			}
 		}
 	}

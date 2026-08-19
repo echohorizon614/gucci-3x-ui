@@ -203,7 +203,7 @@ export default function AttachExistingClientsModal({
                     options={groupOptions}
                     placeholder={t('pages.clients.group')}
                     style={{ minWidth: 160 }}
-                    showSearch={{ optionFilterProp: 'label' }}
+                    optionFilterProp="label"
                   />
                 )}
               </Space>

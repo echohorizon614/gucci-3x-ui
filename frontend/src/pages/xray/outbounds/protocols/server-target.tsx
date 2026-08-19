@@ -1,28 +1,24 @@
 import { useTranslation } from 'react-i18next';
-import { Input, InputNumber } from 'antd';
-
-import { FormField } from '@/components/form/rhf';
+import { Form, Input, InputNumber } from 'antd';
 
 export default function ServerTarget() {
   const { t } = useTranslation();
   return (
     <>
-      <FormField
+      <Form.Item
         label={t('pages.inbounds.address')}
         name={['settings', 'address']}
-        required
-        rules={{ required: 'pages.xray.outboundForm.addressRequired' }}
+        rules={[{ required: true, message: t('pages.xray.outboundForm.addressRequired') }]}
       >
         <Input />
-      </FormField>
-      <FormField
+      </Form.Item>
+      <Form.Item
         label={t('pages.inbounds.port')}
         name={['settings', 'port']}
-        required
-        rules={{ required: 'pages.xray.outboundForm.portRequired' }}
+        rules={[{ required: true, message: t('pages.xray.outboundForm.portRequired') }]}
       >
         <InputNumber min={1} max={65535} style={{ width: '100%' }} />
-      </FormField>
+      </Form.Item>
     </>
   );
 }

@@ -30,7 +30,6 @@ export type DBInboundInit = Partial<{
     enable: boolean;
     expiryTime: number;
     trafficReset: string;
-    trafficResetDay: number;
     lastTrafficResetTime: number;
     listen: string;
     port: number;
@@ -77,7 +76,6 @@ export class DBInbound {
     enable: boolean;
     expiryTime: number;
     trafficReset: string;
-    trafficResetDay: number;
     lastTrafficResetTime: number;
 
     listen: string;
@@ -107,7 +105,6 @@ export class DBInbound {
         this.enable = true;
         this.expiryTime = 0;
         this.trafficReset = "never";
-        this.trafficResetDay = 1;
         this.lastTrafficResetTime = 0;
 
         this.listen = "";

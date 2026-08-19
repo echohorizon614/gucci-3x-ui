@@ -61,6 +61,29 @@ persist_dir /root/.acme.sh "$DATA_ROOT/acme"
 persist_dir /var/log/x-ui "$DATA_ROOT/log"
 
 DB="$DB_FOLDER/x-ui.db"
+
+# Before the first requested v3.4.2 start, take an online-safe SQLite snapshot
+# inside the real /GUCCI volume. It is created once, verified, and never
+# overwritten, so the version transition cannot destroy the pre-transition DB.
+if [ "${GUCCI_PANEL_VERSION:-}" = "3.4.2" ] && [ -f "$DB" ]; then
+  BACKUP_DIR="$DATA_ROOT/backups"
+  BACKUP_DB="$BACKUP_DIR/pre-v3.4.2-transition.db"
+  if [ ! -f "$BACKUP_DB" ]; then
+    mkdir -p "$BACKUP_DIR"
+    rm -f "${BACKUP_DB}.new"
+    sqlite3 "$DB" ".backup '${BACKUP_DB}.new'"
+    if [ "$(sqlite3 "${BACKUP_DB}.new" 'PRAGMA integrity_check;')" != "ok" ]; then
+      rm -f "${BACKUP_DB}.new"
+      echo 'Persistent database snapshot failed integrity verification' >&2
+      exit 1
+    fi
+    mv "${BACKUP_DB}.new" "$BACKUP_DB"
+    chmod 0600 "$BACKUP_DB"
+    sha256sum "$BACKUP_DB" >"${BACKUP_DB}.sha256"
+    echo "Created verified pre-transition database snapshot: ${BACKUP_DB}"
+  fi
+fi
+
 FIRST_BOOT=false
 [ -f "$DB" ] || FIRST_BOOT=true
 

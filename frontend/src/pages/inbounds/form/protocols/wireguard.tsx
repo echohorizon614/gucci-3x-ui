@@ -2,8 +2,6 @@ import { useTranslation } from 'react-i18next';
 import { Button, Form, Input, InputNumber, Select, Space, Switch } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 
-import { FormField } from '@/components/form/rhf';
-
 interface WireguardFieldsProps {
   wgPubKey: string;
   regenInboundWg: () => void;
@@ -15,29 +13,29 @@ export default function WireguardFields({ wgPubKey, regenInboundWg }: WireguardF
     <>
       <Form.Item label={t('pages.xray.wireguard.secretKey')}>
         <Space.Compact block>
-          <FormField name={['settings', 'secretKey']} noStyle>
+          <Form.Item name={['settings', 'secretKey']} noStyle>
             <Input style={{ width: 'calc(100% - 32px)' }} />
-          </FormField>
+          </Form.Item>
           <Button aria-label={t('regenerate')} icon={<ReloadOutlined />} onClick={regenInboundWg} />
         </Space.Compact>
       </Form.Item>
       <Form.Item label={t('pages.xray.wireguard.publicKey')}>
         <Input value={wgPubKey} disabled />
       </Form.Item>
-      <FormField name={['settings', 'mtu']} label="MTU">
+      <Form.Item name={['settings', 'mtu']} label="MTU">
         <InputNumber />
-      </FormField>
-      <FormField name={['settings', 'dns']} label={t('pages.inbounds.info.dns')}>
+      </Form.Item>
+      <Form.Item name={['settings', 'dns']} label={t('pages.inbounds.info.dns')}>
         <Input placeholder="1.1.1.1, 1.0.0.1" />
-      </FormField>
-      <FormField
+      </Form.Item>
+      <Form.Item
         name={['settings', 'noKernelTun']}
         label={t('pages.inbounds.info.noKernelTun')}
-        valueProp="checked"
+        valuePropName="checked"
       >
         <Switch />
-      </FormField>
-      <FormField name={['settings', 'domainStrategy']} label={t('pages.xray.wireguard.domainStrategy')}>
+      </Form.Item>
+      <Form.Item name={['settings', 'domainStrategy']} label={t('pages.xray.wireguard.domainStrategy')}>
         <Select
           allowClear
           options={[
@@ -48,7 +46,7 @@ export default function WireguardFields({ wgPubKey, regenInboundWg }: WireguardF
             { value: 'ForceIPv6v4', label: 'ForceIPv6v4' },
           ]}
         />
-      </FormField>
+      </Form.Item>
     </>
   );
 }

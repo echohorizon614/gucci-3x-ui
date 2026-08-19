@@ -1,45 +1,44 @@
 import { useTranslation } from 'react-i18next';
-import { Button, Form, Input, Select, Space, Switch } from 'antd';
+import { Button, Form, Input, Select, Space, Switch, type FormInstance } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
-import { useFormContext } from 'react-hook-form';
 
 import { RandomUtil } from '@/utils';
-import { FormField } from '@/components/form/rhf';
 import { SSMethodSchema } from '@/schemas/protocols/shared/shadowsocks';
+import type { InboundFormValues } from '@/schemas/forms/inbound-form';
 
 interface ShadowsocksFieldsProps {
+  form: FormInstance<InboundFormValues>;
   isSSWith2022: boolean;
 }
 
-export default function ShadowsocksFields({ isSSWith2022 }: ShadowsocksFieldsProps) {
+export default function ShadowsocksFields({ form, isSSWith2022 }: ShadowsocksFieldsProps) {
   const { t } = useTranslation();
-  const { getValues, setValue } = useFormContext();
   return (
     <>
-      <FormField
-        name={['settings', 'method']}
-        label={t('pages.inbounds.form.encryptionMethod')}
-        onAfterChange={(v) => {
-          setValue('settings.password', RandomUtil.randomShadowsocksPassword(v as string));
-        }}
-      >
+      <Form.Item name={['settings', 'method']} label={t('pages.inbounds.form.encryptionMethod')}>
         <Select
+          onChange={(v) => {
+            form.setFieldValue(
+              ['settings', 'password'],
+              RandomUtil.randomShadowsocksPassword(v as string),
+            );
+          }}
           options={SSMethodSchema.options.map((m) => ({ value: m, label: m }))}
         />
-      </FormField>
+      </Form.Item>
       {isSSWith2022 && (
         <Form.Item label={t('password')}>
           <Space.Compact block>
-            <FormField name={['settings', 'password']} noStyle>
+            <Form.Item name={['settings', 'password']} noStyle>
               <Input style={{ width: 'calc(100% - 32px)' }} />
-            </FormField>
+            </Form.Item>
             <Button
               aria-label={t('regenerate')}
               icon={<ReloadOutlined />}
               onClick={() => {
-                const method = getValues('settings.method');
-                setValue(
-                  'settings.password',
+                const method = form.getFieldValue(['settings', 'method']);
+                form.setFieldValue(
+                  ['settings', 'password'],
                   RandomUtil.randomShadowsocksPassword(method as string),
                 );
               }}
@@ -47,7 +46,7 @@ export default function ShadowsocksFields({ isSSWith2022 }: ShadowsocksFieldsPro
           </Space.Compact>
         </Form.Item>
       )}
-      <FormField name={['settings', 'network']} label={t('pages.inbounds.network')}>
+      <Form.Item name={['settings', 'network']} label={t('pages.inbounds.network')}>
         <Select
           style={{ width: 120 }}
           options={[
@@ -56,14 +55,14 @@ export default function ShadowsocksFields({ isSSWith2022 }: ShadowsocksFieldsPro
             { value: 'udp', label: 'UDP' },
           ]}
         />
-      </FormField>
-      <FormField
+      </Form.Item>
+      <Form.Item
         name={['settings', 'ivCheck']}
         label="ivCheck"
-        valueProp="checked"
+        valuePropName="checked"
       >
         <Switch />
-      </FormField>
+      </Form.Item>
     </>
   );
 }

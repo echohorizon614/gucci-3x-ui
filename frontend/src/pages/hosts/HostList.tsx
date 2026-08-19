@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Card, Popover, Space, Switch, Table, Tag, Tooltip } from 'antd';
+import { Button, Card, Space, Switch, Table, Tag, Tooltip } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
   ArrowDownOutlined,
@@ -20,8 +20,8 @@ interface HostListProps {
   inboundOptions: InboundOption[];
   loading?: boolean;
   isMobile?: boolean;
-  selectedGroupIds: string[];
-  onSelectionChange: (groupIds: string[]) => void;
+  selectedIds: number[];
+  onSelectionChange: (ids: number[]) => void;
   onAdd: () => void;
   onEdit: (host: HostRecord) => void;
   onDelete: (host: HostRecord) => void;
@@ -31,50 +31,56 @@ interface HostListProps {
   onBulkDelete: () => void;
 }
 
-const INBOUND_PROTOCOL_COLORS: Record<string, string> = {
-  vless: 'blue',
-  vmess: 'geekblue',
-  trojan: 'volcano',
-  shadowsocks: 'magenta',
-  hysteria: 'cyan',
-  hysteria2: 'green',
-  wireguard: 'gold',
-  http: 'purple',
-  mixed: 'lime',
-  tunnel: 'orange',
-};
-
-export function sortHosts(hosts: HostRecord[]): HostRecord[] {
+// Sorted by inbound then sort_order then id — the same order the subscription
+// renderer uses, so the list mirrors the emitted link order.
+function sortHosts(hosts: HostRecord[]): HostRecord[] {
   return [...hosts].sort((a, b) => {
+    if (a.inboundId !== b.inboundId) return a.inboundId - b.inboundId;
     const sa = a.sortOrder ?? 0;
     const sb = b.sortOrder ?? 0;
     if (sa !== sb) return sa - sb;
-    return (a.remark || '').localeCompare(b.remark || '');
+    return a.id - b.id;
   });
 }
 
 export default function HostList(props: HostListProps) {
   const { t } = useTranslation();
   const {
-    hosts, inboundOptions, loading, isMobile, selectedGroupIds, onSelectionChange,
+    hosts, inboundOptions, loading, isMobile, selectedIds, onSelectionChange,
     onAdd, onEdit, onDelete, onToggleEnable, onMove, onBulkEnable, onBulkDelete,
   } = props;
 
-  const inboundsMap = useMemo(() => {
-    const map = new Map<number, InboundOption>();
-    for (const ib of inboundOptions) map.set(ib.id, ib);
+  const inboundLabel = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const ib of inboundOptions) map.set(ib.id, ib.remark || ib.tag || `#${ib.id}`);
     return map;
   }, [inboundOptions]);
 
   const sorted = useMemo(() => sortHosts(hosts), [hosts]);
 
+  // Move is bounded to neighbours within the same inbound (sort_order is per-inbound).
+  const movable = useMemo(() => {
+    const byInbound = new Map<number, number>();
+    const idxInGroup = new Map<number, number>();
+    const counters = new Map<number, number>();
+    for (const h of sorted) byInbound.set(h.inboundId, (byInbound.get(h.inboundId) ?? 0) + 1);
+    for (const h of sorted) {
+      const c = counters.get(h.inboundId) ?? 0;
+      idxInGroup.set(h.id, c);
+      counters.set(h.inboundId, c + 1);
+    }
+    return { byInbound, idxInGroup };
+  }, [sorted]);
+
+  // Column order requested: Actions, Enable, then the rest.
   const columns: ColumnsType<HostRecord> = [
     {
       title: t('pages.hosts.fields.actions'),
       key: 'actions',
       width: 168,
-      render: (_, h, idx) => {
-        const count = sorted.length;
+      render: (_, h) => {
+        const idx = movable.idxInGroup.get(h.id) ?? 0;
+        const count = movable.byInbound.get(h.inboundId) ?? 1;
         return (
           <Space size={2}>
             <Tooltip title={t('pages.hosts.moveUp')}>
@@ -115,73 +121,12 @@ export default function HostList(props: HostListProps) {
     {
       title: t('pages.hosts.fields.endpoint'),
       key: 'endpoint',
-      render: (_, h) => {
-        const addrs = h.hosts?.filter(a => a.trim() !== '') || [];
-        if (addrs.length === 0) return <Tag color="orange">{t('pages.hosts.fields.inheritAddress') || 'inherits'}</Tag>;
-        const visible = addrs.slice(0, 1);
-        const overflow = addrs.slice(1);
-        return (
-          <>
-            {visible.map((addr) => <Tag key={addr}>{addr}</Tag>)}
-            {overflow.length > 0 && (
-              <Popover
-                trigger="click"
-                placement="bottomRight"
-                content={
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 280, maxHeight: 280, overflowY: 'auto' }}>
-                    {overflow.map((addr) => <Tag key={addr}>{addr}</Tag>)}
-                  </div>
-                }
-              >
-                <Tag color="default" style={{ margin: 2, cursor: 'pointer' }}>
-                  +{overflow.length}
-                </Tag>
-              </Popover>
-            )}
-          </>
-        );
-      },
+      render: (_, h) => <span className="host-endpoint">{`${h.address || '—'}${h.port ? `:${h.port}` : ''}`}</span>,
     },
     {
       title: t('pages.hosts.fields.inbound'),
       key: 'inbound',
-      render: (_, h) => {
-        const ids = h.inboundIds || [];
-        if (ids.length === 0) return <span className="host-muted">—</span>;
-        const visible = ids.slice(0, 1);
-        const overflow = ids.slice(1);
-        const chip = (id: number) => {
-          const ib = inboundsMap.get(id);
-          const label = ib ? (ib.remark || ib.tag || `#${id}`) : `#${id}`;
-          const proto = (ib?.protocol || '').toLowerCase();
-          const color = INBOUND_PROTOCOL_COLORS[proto] ?? 'default';
-          return (
-            <Tooltip key={id} title={label}>
-              <Tag color={color} style={{ margin: 2 }}>{label}</Tag>
-            </Tooltip>
-          );
-        };
-        return (
-          <>
-            {visible.map(chip)}
-            {overflow.length > 0 && (
-              <Popover
-                trigger="click"
-                placement="bottomRight"
-                content={
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxWidth: 280, maxHeight: 280, overflowY: 'auto' }}>
-                    {overflow.map(chip)}
-                  </div>
-                }
-              >
-                <Tag color="default" style={{ margin: 2, cursor: 'pointer' }}>
-                  +{overflow.length}
-                </Tag>
-              </Popover>
-            )}
-          </>
-        );
-      },
+      render: (_, h) => inboundLabel.get(h.inboundId) ?? `#${h.inboundId}`,
     },
     {
       title: t('pages.hosts.fields.security'),
@@ -200,7 +145,7 @@ export default function HostList(props: HostListProps) {
 
   const toolbar = (
     <div className="card-toolbar">
-      {selectedGroupIds.length === 0 ? (
+      {selectedIds.length === 0 ? (
         <Button type="primary" icon={<PlusOutlined />} onClick={onAdd}>
           {!isMobile && t('pages.hosts.addHost')}
         </Button>
@@ -212,7 +157,7 @@ export default function HostList(props: HostListProps) {
             onClose={() => onSelectionChange([])}
             style={{ marginInlineEnd: 0, padding: '4px 8px', fontSize: 13 }}
           >
-            {t('pages.hosts.selectedCount', { count: selectedGroupIds.length })}
+            {t('pages.hosts.selectedCount', { count: selectedIds.length })}
           </Tag>
           <Button onClick={() => onBulkEnable(true)}>{t('pages.hosts.bulkEnable')}</Button>
           <Button onClick={() => onBulkEnable(false)}>{t('pages.hosts.bulkDisable')}</Button>
@@ -225,7 +170,7 @@ export default function HostList(props: HostListProps) {
   return (
     <Card size="small" hoverable title={toolbar} className="hosts-card">
       <Table<HostRecord>
-        rowKey="groupId"
+        rowKey="id"
         size="small"
         loading={loading}
         columns={columns}
@@ -233,8 +178,8 @@ export default function HostList(props: HostListProps) {
         pagination={false}
         scroll={{ x: 'max-content' }}
         rowSelection={{
-          selectedRowKeys: selectedGroupIds,
-          onChange: (keys) => onSelectionChange(keys as string[]),
+          selectedRowKeys: selectedIds,
+          onChange: (keys) => onSelectionChange(keys as number[]),
         }}
         locale={{
           emptyText: (

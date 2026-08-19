@@ -72,7 +72,6 @@ export default function PromptModal({
       ) : type === 'textarea' ? (
         <Input.TextArea
           ref={(el) => { textareaRef.current = (el as unknown as { resizableTextArea?: { textArea: HTMLTextAreaElement } })?.resizableTextArea?.textArea ?? null; }}
-          aria-label={title}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           autoSize={{ minRows: 10, maxRows: 20 }}
@@ -81,7 +80,6 @@ export default function PromptModal({
       ) : (
         <Input
           ref={inputRef}
-          aria-label={title}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeydown}

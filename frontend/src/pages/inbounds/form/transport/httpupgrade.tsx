@@ -1,38 +1,37 @@
 import { useTranslation } from 'react-i18next';
-import { Input, Switch } from 'antd';
+import { Form, Input, Switch } from 'antd';
 
 import { HeaderMapEditor } from '@/components/form';
-import { FormField } from '@/components/form/rhf';
 
 export default function HttpUpgradeForm() {
   const { t } = useTranslation();
   return (
     <>
-      <FormField
+      <Form.Item
         name={['streamSettings', 'httpupgradeSettings', 'acceptProxyProtocol']}
         label={t('pages.inbounds.form.proxyProtocol')}
-        valueProp="checked"
+        valuePropName="checked"
       >
         <Switch />
-      </FormField>
-      <FormField
+      </Form.Item>
+      <Form.Item
         name={['streamSettings', 'httpupgradeSettings', 'host']}
         label={t('host')}
       >
         <Input />
-      </FormField>
-      <FormField
+      </Form.Item>
+      <Form.Item
         name={['streamSettings', 'httpupgradeSettings', 'path']}
         label={t('path')}
       >
         <Input />
-      </FormField>
-      <FormField
+      </Form.Item>
+      <Form.Item
         label={t('pages.inbounds.form.headers')}
         name={['streamSettings', 'httpupgradeSettings', 'headers']}
       >
         <HeaderMapEditor mode="v1" />
-      </FormField>
+      </Form.Item>
     </>
   );
 }

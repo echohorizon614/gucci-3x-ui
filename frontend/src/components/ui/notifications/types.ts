@@ -4,7 +4,7 @@ export interface NotificationEventConfig {
   key: string;
   label: string;
   settingKey: string;
-  extra?: (props: { value: number; onChange: (v: number | null) => void; ariaLabel: string }) => ReactNode;
+  extra?: (props: { value: number; onChange: (v: number | null) => void }) => ReactNode;
 }
 
 export interface NotificationGroupConfig {

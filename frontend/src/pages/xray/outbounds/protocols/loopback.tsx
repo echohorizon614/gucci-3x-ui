@@ -1,30 +1,22 @@
 import { useTranslation } from 'react-i18next';
-import { Input } from 'antd';
-import { Controller, useFormContext } from 'react-hook-form';
+import { Form, Input } from 'antd';
 
-import { FormField } from '@/components/form/rhf';
-import { SniffingField } from '@/lib/xray/forms/fields';
+import SniffingFields from '@/lib/xray/forms/SniffingFields';
 
 export default function LoopbackFields() {
   const { t } = useTranslation();
-  const { control } = useFormContext();
+  const form = Form.useFormInstance();
 
   return (
     <>
-      <FormField label={t('pages.xray.outboundForm.inboundTag')} name={['settings', 'inboundTag']}>
+      <Form.Item label={t('pages.xray.outboundForm.inboundTag')} name={['settings', 'inboundTag']}>
         <Input placeholder={t('pages.xray.outboundForm.inboundTagPlaceholder')} />
-      </FormField>
+      </Form.Item>
 
-      <Controller
-        control={control}
-        name="settings.sniffing"
-        render={({ field }) => (
-          <SniffingField
-            value={field.value}
-            onChange={field.onChange}
-            enableLabel={t('pages.inbounds.sniffingTab')}
-          />
-        )}
+      <SniffingFields
+        name={['settings', 'sniffing']}
+        form={form}
+        enableLabel={t('pages.inbounds.sniffingTab')}
       />
     </>
   );

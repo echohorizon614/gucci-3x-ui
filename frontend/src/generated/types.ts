@@ -32,7 +32,6 @@ export interface AllSetting {
   ldapUserAttr: string;
   ldapUserFilter: string;
   ldapVlessField: string;
-  outboundDownThreshold: number;
   pageSize: number;
   panelOutbound: string;
   remarkTemplate: string;
@@ -42,8 +41,6 @@ export interface AllSetting {
   smtpEnable: boolean;
   smtpEnabledEvents: string;
   smtpEncryptionType: string;
-  smtpFrom: string;
-  smtpFromName: string;
   smtpHost: string;
   smtpMemory: number;
   smtpPassword: string;
@@ -52,13 +49,11 @@ export interface AllSetting {
   smtpUsername: string;
   subAnnounce: string;
   subCertFile: string;
-  subClashAutoDetect: boolean;
   subClashEnable: boolean;
   subClashEnableRouting: boolean;
   subClashPath: string;
   subClashRules: string;
   subClashURI: string;
-  subClashUserAgentRegex: string;
   subDomain: string;
   subEnable: boolean;
   subEnableRouting: boolean;
@@ -66,22 +61,18 @@ export interface AllSetting {
   subHideSettings: boolean;
   subIncyEnableRouting: boolean;
   subIncyRoutingRules: string;
-  subJsonAlwaysArray: boolean;
-  subJsonAutoDetect: boolean;
   subJsonEnable: boolean;
   subJsonFinalMask: string;
   subJsonMux: string;
   subJsonPath: string;
   subJsonRules: string;
   subJsonURI: string;
-  subJsonUserAgentRegex: string;
   subKeyFile: string;
   subListen: string;
   subPath: string;
   subPort: number;
   subProfileUrl: string;
   subRoutingRules: string;
-  subShowIdentityOnAllLinks: boolean;
   subSupportUrl: string;
   subThemeDir: string;
   subTitle: string;
@@ -145,7 +136,6 @@ export interface AllSettingView {
   ldapUserAttr: string;
   ldapUserFilter: string;
   ldapVlessField: string;
-  outboundDownThreshold: number;
   pageSize: number;
   panelOutbound: string;
   remarkTemplate: string;
@@ -155,8 +145,6 @@ export interface AllSettingView {
   smtpEnable: boolean;
   smtpEnabledEvents: string;
   smtpEncryptionType: string;
-  smtpFrom: string;
-  smtpFromName: string;
   smtpHost: string;
   smtpMemory: number;
   smtpPassword: string;
@@ -165,13 +153,11 @@ export interface AllSettingView {
   smtpUsername: string;
   subAnnounce: string;
   subCertFile: string;
-  subClashAutoDetect: boolean;
   subClashEnable: boolean;
   subClashEnableRouting: boolean;
   subClashPath: string;
   subClashRules: string;
   subClashURI: string;
-  subClashUserAgentRegex: string;
   subDomain: string;
   subEnable: boolean;
   subEnableRouting: boolean;
@@ -179,22 +165,18 @@ export interface AllSettingView {
   subHideSettings: boolean;
   subIncyEnableRouting: boolean;
   subIncyRoutingRules: string;
-  subJsonAlwaysArray: boolean;
-  subJsonAutoDetect: boolean;
   subJsonEnable: boolean;
   subJsonFinalMask: string;
   subJsonMux: string;
   subJsonPath: string;
   subJsonRules: string;
   subJsonURI: string;
-  subJsonUserAgentRegex: string;
   subKeyFile: string;
   subListen: string;
   subPath: string;
   subPort: number;
   subProfileUrl: string;
   subRoutingRules: string;
-  subShowIdentityOnAllLinks: boolean;
   subSupportUrl: string;
   subThemeDir: string;
   subTitle: string;
@@ -242,7 +224,6 @@ export interface ApiTokenView {
 }
 
 export interface Client {
-  adTag?: string;
   allowedIPs?: string[];
   auth?: string;
   comment: string;
@@ -261,7 +242,6 @@ export interface Client {
   publicKey?: string;
   reset: number;
   reverse?: ClientReverse | null;
-  secret?: string;
   security: string;
   subId: string;
   tgId: number;
@@ -277,7 +257,6 @@ export interface ClientInbound {
 }
 
 export interface ClientRecord {
-  adTag: string;
   allowedIPs: string;
   auth: string;
   comment: string;
@@ -296,7 +275,6 @@ export interface ClientRecord {
   publicKey: string;
   reset: number;
   reverse: unknown;
-  secret: string;
   security: string;
   subId: string;
   tgId: number;
@@ -343,7 +321,6 @@ export interface Host {
   excludeFromSubTypes: string[];
   finalMask: string;
   fingerprint: string;
-  groupId: string;
   hostHeader: string;
   id: number;
   inboundId: number;
@@ -371,40 +348,6 @@ export interface Host {
   vlessRoute: string;
 }
 
-export interface HostGroup {
-  allowInsecure: boolean;
-  alpn: string[];
-  echConfigList: string;
-  excludeFromSubTypes: string[];
-  finalMask: string;
-  fingerprint: string;
-  groupId: string;
-  hostHeader: string;
-  hosts: string[];
-  inboundIds: number[];
-  isDisabled: boolean;
-  isHidden: boolean;
-  keepSniBlank: boolean;
-  mihomoIpVersion: string;
-  mihomoX25519: boolean;
-  muxParams: string;
-  nodeGuids: string[];
-  overrideSniFromAddress: boolean;
-  path: string;
-  pinnedPeerCertSha256: string[];
-  port: number;
-  remark: string;
-  security: string;
-  serverDescription: string;
-  shuffleHost: boolean;
-  sni: string;
-  sockoptParams: string;
-  sortOrder: number;
-  tags: string[];
-  verifyPeerCertByName: string;
-  vlessRoute: string;
-}
-
 export interface Inbound {
   clientStats: ClientTraffic[];
   down: number;
@@ -428,7 +371,6 @@ export interface Inbound {
   tag: string;
   total: number;
   trafficReset: string;
-  trafficResetDay: number;
   up: number;
 }
 
@@ -451,17 +393,11 @@ export interface InboundFallback {
 }
 
 export interface InboundOption {
-  enable: boolean;
   id: number;
-  listen?: string;
-  mtprotoDomain?: string;
-  nodeAddress?: string;
   nodeId?: number | null;
   port: number;
   protocol: string;
   remark: string;
-  shareAddr?: string;
-  shareAddrStrategy?: string;
   ssMethod: string;
   tag: string;
   tlsFlowCapable: boolean;
@@ -480,6 +416,7 @@ export interface Node {
   activeCount: number;
   address: string;
   allowPrivateAddress: boolean;
+  apiToken: string;
   basePath: string;
   clientCount: number;
   configDirty: boolean;
@@ -490,69 +427,6 @@ export interface Node {
   disabledCount: number;
   enable: boolean;
   guid: string;
-  id: number;
-  inboundCount: number;
-  inboundSyncMode: string;
-  inboundTags: string[];
-  lastError: string;
-  lastHeartbeat: number;
-  latencyMs: number;
-  memPct: number;
-  name: string;
-  netDown: number;
-  netUp: number;
-  onlineCount: number;
-  outboundTag: string;
-  panelVersion: string;
-  parentGuid?: string;
-  pinnedCertSha256: string;
-  port: number;
-  remark: string;
-  scheme: string;
-  status: string;
-  tlsVerifyMode: string;
-  transitive?: boolean;
-  updatedAt: number;
-  uptimeSecs: number;
-  xrayError: string;
-  xrayState: string;
-  xrayVersion: string;
-}
-
-export interface NodeMutationRequest {
-  address: string;
-  allowPrivateAddress: boolean;
-  apiToken?: string | null;
-  basePath: string;
-  clearApiToken?: boolean;
-  enable: boolean;
-  id: number;
-  inboundSyncMode: string;
-  inboundTags: string[];
-  name: string;
-  outboundTag: string;
-  pinnedCertSha256: string;
-  port: number;
-  remark: string;
-  scheme: string;
-  tlsVerifyMode: string;
-}
-
-export interface NodeView {
-  activeCount: number;
-  address: string;
-  allowPrivateAddress: boolean;
-  basePath: string;
-  clientCount: number;
-  configDirty: boolean;
-  configDirtyAt: number;
-  cpuPct: number;
-  createdAt: number;
-  depletedCount: number;
-  disabledCount: number;
-  enable: boolean;
-  guid: string;
-  hasApiToken: boolean;
   id: number;
   inboundCount: number;
   inboundSyncMode: string;
@@ -588,13 +462,6 @@ export interface OutboundTraffics {
   tag: string;
   total: number;
   up: number;
-}
-
-export interface PanelUpdateStatus {
-  exitCode: number;
-  finishedAt: number;
-  runId: string;
-  state: string;
 }
 
 export interface ProbeResultUI {

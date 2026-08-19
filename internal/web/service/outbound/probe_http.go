@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"net"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 	"net/url"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -30,19 +28,11 @@ import (
 // client-side (instead of polling xray's observatory) returns the moment the
 // response lands, yields the actual HTTP status, and allows an httptrace
 // timing breakdown — while the shared process keeps "Test All" at one xray
-// spawn per batch instead of one per outbound. The reported delay comes from
-// a second request on the kept-alive connection, so it reflects the tunnel's
-// real per-request round-trip rather than the stacked SOCKS/proxy/TLS
-// handshakes of connection establishment. Mode "real" instead reports the
-// cold request's full elapsed time and skips the warm request.
+// spawn per batch instead of one per outbound.
 
 const (
-	// httpProbeTimeout bounds each probe request end-to-end (a probe makes
-	// two: a cold one for the breakdown, a warm one for the delay).
+	// httpProbeTimeout bounds one probe request end-to-end.
 	httpProbeTimeout = 10 * time.Second
-	// probeDrainLimit caps how much response body a probe reads back to keep
-	// the connection reusable for the warm request.
-	probeDrainLimit = 256 << 10
 	// httpProbeConcurrency caps parallel probe requests within a batch —
 	// enough to keep a batch fast, low enough not to spike CPU with TLS
 	// handshakes on small VPSes.
@@ -55,13 +45,8 @@ const (
 	// tcpBatchConcurrency caps parallel TCP-mode items in a batch (each item
 	// already dials its endpoints concurrently).
 	tcpBatchConcurrency = 8
-	// egressTraceTimeout keeps diagnostic trace metadata from extending a
-	// successful HTTP probe by the full reachability timeout.
-	egressTraceTimeout = 3 * time.Second
 
-	defaultTestURL  = "https://www.google.com/generate_204"
-	egressTraceHost = "cloudflare.com"
-	egressTracePath = "/cdn-cgi/trace"
+	defaultTestURL = "https://www.google.com/generate_204"
 )
 
 // httpTestSemaphore serialises HTTP-mode batches (each spawns a temp xray
@@ -82,8 +67,6 @@ var newBatchProcess = func(cfg *xray.Config, configPath string) batchProcess {
 	return xray.NewTestProcess(cfg, configPath)
 }
 
-var egressTraceProbe = probeEgressTrace
-
 // httpBatchItem is one outbound inside an HTTP-mode batch. result is the
 // pre-allocated entry in the caller's result slice, filled in place.
 type httpBatchItem struct {
@@ -91,15 +74,6 @@ type httpBatchItem struct {
 	tag      string
 	outbound map[string]any
 	result   *TestOutboundResult
-}
-
-func probeModeLabel(mode string) string {
-	switch mode {
-	case "tcp", "real":
-		return mode
-	default:
-		return "http"
-	}
 }
 
 // TestOutbound probes a single outbound; legacy single-test API kept for the
@@ -110,7 +84,11 @@ func probeModeLabel(mode string) string {
 func (s *OutboundService) TestOutbound(outboundJSON string, testURL string, allOutboundsJSON string, mode string) (*TestOutboundResult, error) {
 	var ob map[string]any
 	if err := json.Unmarshal([]byte(outboundJSON), &ob); err != nil {
-		return &TestOutboundResult{Mode: probeModeLabel(mode), Success: false, Error: fmt.Sprintf("Invalid outbound JSON: %v", err)}, nil
+		m := "http"
+		if mode == "tcp" {
+			m = "tcp"
+		}
+		return &TestOutboundResult{Mode: m, Success: false, Error: fmt.Sprintf("Invalid outbound JSON: %v", err)}, nil
 	}
 	results := s.testOutboundsParsed([]map[string]any{ob}, testURL, allOutboundsJSON, mode)
 	return results[0], nil
@@ -144,12 +122,10 @@ func (s *OutboundService) TestOutbounds(outboundsJSON string, testURL string, al
 func (s *OutboundService) testOutboundsParsed(items []map[string]any, testURL string, allOutboundsJSON string, mode string) []*TestOutboundResult {
 	results := make([]*TestOutboundResult, len(items))
 
-	modeLabel := probeModeLabel(mode)
-	probeLabel := modeLabel
-	if probeLabel == "tcp" {
-		probeLabel = "http"
+	modeLabel := "http"
+	if mode == "tcp" {
+		modeLabel = "tcp"
 	}
-	realDelay := mode == "real"
 
 	type tcpEntry struct {
 		idx int
@@ -174,7 +150,7 @@ func (s *OutboundService) testOutboundsParsed(items []map[string]any, testURL st
 		}
 
 		tag, _ := ob["tag"].(string)
-		r := &TestOutboundResult{Tag: tag, Mode: probeLabel}
+		r := &TestOutboundResult{Tag: tag, Mode: "http"}
 		results[i] = r
 		protocol, _ := ob["protocol"].(string)
 		switch {
@@ -247,7 +223,7 @@ func (s *OutboundService) testOutboundsParsed(items []map[string]any, testURL st
 	}
 	defer httpTestSemaphore.Unlock()
 
-	retryPerItem, err := runHTTPProbeBatch(httpItems, allOutbounds, testURL, realDelay)
+	retryPerItem, err := runHTTPProbeBatch(httpItems, allOutbounds, testURL)
 	if err == nil {
 		return results
 	}
@@ -260,7 +236,7 @@ func (s *OutboundService) testOutboundsParsed(items []map[string]any, testURL st
 	// instance so the broken outbound reports xray's real error and the
 	// rest still get tested. Serial: the poisoned case fails fast (~1s).
 	for _, it := range httpItems {
-		if _, ferr := runHTTPProbeBatch([]*httpBatchItem{it}, allOutbounds, testURL, realDelay); ferr != nil {
+		if _, ferr := runHTTPProbeBatch([]*httpBatchItem{it}, allOutbounds, testURL); ferr != nil {
 			it.result.Success = false
 			it.result.Error = ferr.Error()
 		}
@@ -274,7 +250,7 @@ func (s *OutboundService) testOutboundsParsed(items []map[string]any, testURL st
 // whether splitting the batch into per-item instances could help (true for
 // start failures / early exits that a poisoned config would explain, false
 // for environmental failures like a missing binary or no free ports).
-func runHTTPProbeBatch(items []*httpBatchItem, allOutbounds []any, testURL string, realDelay bool) (retryPerItem bool, err error) {
+func runHTTPProbeBatch(items []*httpBatchItem, allOutbounds []any, testURL string) (retryPerItem bool, err error) {
 	ports, release, err := reserveLoopbackPorts(len(items))
 	if err != nil {
 		return false, fmt.Errorf("Failed to reserve test ports: %w", err)
@@ -320,7 +296,7 @@ func runHTTPProbeBatch(items []*httpBatchItem, allOutbounds []any, testURL strin
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			probeThroughSocks(port, testURL, httpProbeTimeout, realDelay, it.result)
+			probeThroughSocks(port, testURL, httpProbeTimeout, it.result)
 		}(items[i], ports[i])
 	}
 	wg.Wait()
@@ -451,22 +427,18 @@ func outboundsContainTag(outbounds []any, tag string) bool {
 	return false
 }
 
-// probeThroughSocks probes the local SOCKS inbound at the given port and
-// fills result. A first, cold GET proves reachability and carries the
-// httptrace breakdown: any HTTP response — including 4xx/5xx and unfollowed
-// redirects — counts as reachable; only transport-level failures (refused,
-// reset, timeout, proxy errors) are failures. Delay is then re-measured on a
-// warm request over the kept-alive connection — the real round-trip through
-// the established tunnel — falling back to the cold total if the warm request
-// fails. The test URL's hostname is resolved by xray (Go's SOCKS5 client
-// sends the domain to the proxy), so DNS goes through the outbound too.
-func probeThroughSocks(port int, testURL string, timeout time.Duration, realDelay bool, result *TestOutboundResult) {
+// probeThroughSocks issues one timed GET through the local SOCKS inbound at
+// the given port and fills result. Any HTTP response — including 4xx/5xx and
+// unfollowed redirects — counts as reachable; only transport-level failures
+// (refused, reset, timeout, proxy errors) are failures. Delay is request
+// start → response headers; the test URL's hostname is resolved by xray
+// (Go's SOCKS5 client sends the domain to the proxy), so DNS goes through
+// the outbound too.
+func probeThroughSocks(port int, testURL string, timeout time.Duration, result *TestOutboundResult) {
 	proxyURL := &url.URL{Scheme: "socks5", Host: net.JoinHostPort("127.0.0.1", strconv.Itoa(port))}
 	tr := &http.Transport{
-		Proxy:               http.ProxyURL(proxyURL),
-		MaxIdleConns:        1,
-		MaxIdleConnsPerHost: 1,
-		IdleConnTimeout:     timeout,
+		Proxy:             http.ProxyURL(proxyURL),
+		DisableKeepAlives: true,
 	}
 	defer tr.CloseIdleConnections()
 	client := &http.Client{
@@ -524,14 +496,15 @@ func probeThroughSocks(port int, testURL string, timeout time.Duration, realDela
 		return
 	}
 	resp, err := client.Do(req)
-	coldDelay := time.Since(start).Milliseconds()
+	delay := time.Since(start).Milliseconds()
 	if err != nil {
 		result.Error = err.Error()
 		return
 	}
-	drainAndClose(resp)
+	resp.Body.Close()
 
 	result.Success = true
+	result.Delay = max(delay, 1)
 	result.HTTPStatus = resp.StatusCode
 	if connDone {
 		result.ConnectMs = max(connDur.Milliseconds(), 1)
@@ -542,182 +515,6 @@ func probeThroughSocks(port int, testURL string, timeout time.Duration, realDela
 	if gotFirstRB {
 		result.TTFBMs = max(ttfbDur.Milliseconds(), 1)
 	}
-
-	delay := coldDelay
-	if !realDelay {
-		if warmDelay, ok := timedWarmGet(client, testURL); ok {
-			delay = warmDelay
-		}
-	}
-	result.Delay = max(delay, 1)
-	if !realDelay {
-		result.Egress = egressTraceProbe(proxyURL)
-	}
-}
-
-// probeEgressTrace fetches Cloudflare's plain-text trace endpoint through the
-// same SOCKS route used by the HTTP probe. It asks one IPv4 and one IPv6
-// Cloudflare address directly, when available, while keeping the TLS SNI as
-// cloudflare.com. Failures are intentionally ignored by the caller: egress
-// metadata is diagnostic, not reachability.
-func probeEgressTrace(proxyURL *url.URL) *TestEgressResult {
-	ipv4, ipv6 := cloudflareTraceTargets()
-	if ipv4 == nil && ipv6 == nil {
-		return nil
-	}
-
-	tr := &http.Transport{
-		Proxy: http.ProxyURL(proxyURL),
-		TLSClientConfig: &tls.Config{
-			ServerName: egressTraceHost,
-		},
-	}
-	defer tr.CloseIdleConnections()
-
-	client := &http.Client{
-		Transport: tr,
-		Timeout:   egressTraceTimeout,
-	}
-
-	egress := &TestEgressResult{}
-	targets := make([]net.IP, 0, 2)
-	if ipv4 != nil {
-		targets = append(targets, ipv4)
-	}
-	if ipv6 != nil {
-		targets = append(targets, ipv6)
-	}
-	results := make(chan map[string]string, len(targets))
-	for _, target := range targets {
-		go func(ip net.IP) {
-			results <- fetchCloudflareTrace(client, ip)
-		}(target)
-	}
-	for range targets {
-		applyEgressTrace(egress, <-results)
-	}
-	if egress.IPv4 == "" && egress.IPv6 == "" && egress.Country == "" && egress.Warp == "" {
-		return nil
-	}
-
-	return egress
-}
-
-func cloudflareTraceTargets() (net.IP, net.IP) {
-	ctx, cancel := context.WithTimeout(context.Background(), egressTraceTimeout)
-	defer cancel()
-
-	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, egressTraceHost)
-	if err != nil {
-		return nil, nil
-	}
-	var ipv4, ipv6 net.IP
-	for _, addr := range addrs {
-		ip := addr.IP
-		if ipv4 == nil {
-			if v4 := ip.To4(); v4 != nil {
-				ipv4 = v4
-				continue
-			}
-		}
-		if ipv6 == nil && ip.To4() == nil && ip.To16() != nil {
-			ipv6 = ip
-		}
-		if ipv4 != nil && ipv6 != nil {
-			break
-		}
-	}
-	return ipv4, ipv6
-}
-
-func fetchCloudflareTrace(client *http.Client, ip net.IP) map[string]string {
-	if ip == nil {
-		return nil
-	}
-	traceURL := (&url.URL{
-		Scheme: "https",
-		Host:   net.JoinHostPort(ip.String(), "443"),
-		Path:   egressTracePath,
-	}).String()
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, traceURL, nil)
-	if err != nil {
-		return nil
-	}
-	req.Host = egressTraceHost
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 16<<10))
-	if err != nil {
-		return nil
-	}
-	return parseCloudflareTrace(string(body))
-}
-
-func applyEgressTrace(egress *TestEgressResult, values map[string]string) {
-	if len(values) == 0 {
-		return
-	}
-	if ip := net.ParseIP(values["ip"]); ip != nil {
-		if ip.To4() != nil {
-			if egress.IPv4 == "" {
-				egress.IPv4 = values["ip"]
-			}
-		} else if egress.IPv6 == "" {
-			egress.IPv6 = values["ip"]
-		}
-	}
-	if egress.Country == "" {
-		egress.Country = values["loc"]
-	}
-	if values["warp"] == "on" || egress.Warp == "" {
-		egress.Warp = values["warp"]
-	}
-}
-
-func parseCloudflareTrace(body string) map[string]string {
-	values := make(map[string]string)
-	for line := range strings.SplitSeq(body, "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		key, value, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		values[strings.TrimSpace(key)] = strings.TrimSpace(value)
-	}
-	return values
-}
-
-// timedWarmGet re-issues the probe request over the transport's kept-alive
-// connection and returns its duration — the tunnel's per-request round-trip.
-func timedWarmGet(client *http.Client, testURL string) (int64, bool) {
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, testURL, nil)
-	if err != nil {
-		return 0, false
-	}
-	start := time.Now()
-	resp, err := client.Do(req)
-	delay := time.Since(start).Milliseconds()
-	if err != nil {
-		return 0, false
-	}
-	drainAndClose(resp)
-	return delay, true
-}
-
-// drainAndClose consumes the body (bounded by probeDrainLimit) so the
-// connection returns to the keep-alive pool for the warm request.
-func drainAndClose(resp *http.Response) {
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, probeDrainLimit))
-	resp.Body.Close()
 }
 
 // reserveLoopbackPorts grabs n free loopback ports and keeps the listeners

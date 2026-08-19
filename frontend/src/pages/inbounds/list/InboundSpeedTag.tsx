@@ -1,7 +1,6 @@
 import { Tag, Tooltip } from 'antd';
 
 import { SizeFormatter } from '@/utils';
-import { SPEED_TAG_CLASS_NAME, SPEED_TAG_STYLE } from '@/components/utility/speedTagStyle';
 
 import type { InboundSpeedEntry } from './types';
 
@@ -13,17 +12,12 @@ export function isActiveSpeed(speed?: InboundSpeedEntry): speed is InboundSpeedE
 interface InboundSpeedTagProps {
   speed: InboundSpeedEntry;
   withTooltip?: boolean;
-  tableCell?: boolean;
 }
 
 // Blue "↑ up / ↓ down" rate tag, optionally with a stacked breakdown tooltip.
-export function InboundSpeedTag({ speed, withTooltip = false, tableCell = false }: InboundSpeedTagProps) {
+export function InboundSpeedTag({ speed, withTooltip = false }: InboundSpeedTagProps) {
   const tag = (
-    <Tag
-      color="blue"
-      className={tableCell ? SPEED_TAG_CLASS_NAME : undefined}
-      style={tableCell ? SPEED_TAG_STYLE : undefined}
-    >
+    <Tag color="blue">
       ↑ {SizeFormatter.speedFormat(speed.up)}
       {' / '}
       ↓ {SizeFormatter.speedFormat(speed.down)}

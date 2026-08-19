@@ -14,7 +14,6 @@ export class AllSetting {
   expireDiff = 0;
   trafficDiff = 0;
   remarkTemplate = '{{INBOUND}}-{{EMAIL}}|📊{{TRAFFIC_LEFT}}|⏳{{DAYS_LEFT}}D';
-  subShowIdentityOnAllLinks = false;
   datepicker: 'gregorian' | 'jalalian' = 'gregorian';
   tgBotEnable = false;
   tgBotToken = '';
@@ -30,11 +29,6 @@ export class AllSetting {
   xrayTemplateConfig = '';
   subEnable = true;
   subJsonEnable = false;
-  subJsonAutoDetect = false;
-  subJsonAlwaysArray = false;
-  subJsonUserAgentRegex = '';
-  subClashAutoDetect = false;
-  subClashUserAgentRegex = '';
   subTitle = '';
   subSupportUrl = '';
   subProfileUrl = '';
@@ -91,20 +85,17 @@ export class AllSetting {
   ldapDefaultTotalGB = 0;
   ldapDefaultExpiryDays = 0;
   ldapDefaultLimitIP = 0;
-  tgEnabledEvents = 'login.attempt,cpu.high';
+  tgEnabledEvents = '';
   smtpEnable = false;
   smtpHost = '';
   smtpPort = 587;
   smtpUsername = '';
   smtpPassword = '';
-  smtpFrom = '';
-  smtpFromName = '';
   smtpTo = '';
   smtpEncryptionType = 'starttls';
-  smtpEnabledEvents = 'login.attempt,cpu.high';
+  smtpEnabledEvents = '';
   smtpCpu = 80;
   smtpMemory = 80;
-  outboundDownThreshold = 3;
   hasTgBotToken = false;
   hasTwoFactorToken = false;
   hasLdapPassword = false;
@@ -112,9 +103,6 @@ export class AllSetting {
   hasWarpSecret = false;
   hasNordSecret = false;
   hasSmtpPassword = false;
-  clearTgBotToken = false;
-  clearLdapPassword = false;
-  clearSmtpPassword = false;
 
   constructor(data?: unknown) {
     if (data != null) {
@@ -122,8 +110,6 @@ export class AllSetting {
     }
     const cpu = Math.round(Number(this.tgCpu));
     this.tgCpu = Number.isFinite(cpu) ? Math.min(100, Math.max(0, cpu)) : 80;
-    const threshold = Math.round(Number(this.outboundDownThreshold));
-    this.outboundDownThreshold = Number.isFinite(threshold) ? Math.min(100, Math.max(1, threshold)) : 3;
   }
 
   equals(other: AllSetting): boolean {

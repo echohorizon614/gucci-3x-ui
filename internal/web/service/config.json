@@ -33,7 +33,6 @@
       "settings": {
         "domainStrategy": "AsIs",
         "finalRules": [
-          { "action": "block", "ip": ["geoip:private"] },
           { "action": "allow" }
         ]
       },

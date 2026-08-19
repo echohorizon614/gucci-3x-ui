@@ -2,14 +2,14 @@ import { createRoot } from 'react-dom/client';
 import { message } from 'antd';
 import 'antd/dist/reset.css';
 
-import { setupHttp } from '@/api/http-init';
+import { setupAxios } from '@/api/axios-init';
 import { applyDocumentTitle } from '@/utils';
 import { readyI18n } from '@/i18n/react';
 import { ThemeProvider } from '@/hooks/useTheme';
 import { QueryProvider } from '@/api/QueryProvider';
 import LoginPage from '@/pages/login/LoginPage';
 
-setupHttp();
+setupAxios();
 applyDocumentTitle();
 
 const messageContainer = document.getElementById('message');

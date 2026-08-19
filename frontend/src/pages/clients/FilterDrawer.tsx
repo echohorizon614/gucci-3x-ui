@@ -89,7 +89,7 @@ export default function FilterDrawer({
       title={t('pages.clients.filterTitle')}
       open={open}
       onClose={() => onOpenChange(false)}
-      size={420}
+      width={420}
       destroyOnHidden
       footer={
         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -139,7 +139,8 @@ export default function FilterDrawer({
             placeholder={t('inbounds')}
             maxTagCount="responsive"
             allowClear
-            showSearch={{ optionFilterProp: 'label' }}
+            showSearch
+            optionFilterProp="label"
             listHeight={220}
           />
         </Form.Item>
@@ -154,7 +155,8 @@ export default function FilterDrawer({
               placeholder={t('pages.clients.filters.nodes')}
               maxTagCount="responsive"
               allowClear
-              showSearch={{ optionFilterProp: 'label' }}
+              showSearch
+              optionFilterProp="label"
               listHeight={220}
             />
           </Form.Item>
@@ -169,7 +171,8 @@ export default function FilterDrawer({
             placeholder={t('pages.clients.groupPlaceholder')}
             maxTagCount="responsive"
             allowClear
-            showSearch={{ optionFilterProp: 'label' }}
+            showSearch
+            optionFilterProp="label"
             listHeight={220}
           />
         </Form.Item>

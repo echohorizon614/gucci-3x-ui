@@ -16,9 +16,8 @@ import (
 // with a short timeout so a slow/dead provider can't stall a client's sub.
 
 const (
-	subscriptionCacheTTL      = 5 * time.Minute
-	subscriptionMaxBytes      = 2 << 20 // 2 MiB
-	subscriptionCacheCapacity = 256
+	subscriptionCacheTTL = 5 * time.Minute
+	subscriptionMaxBytes = 2 << 20 // 2 MiB
 )
 
 var subscriptionHTTPClient = &http.Client{Timeout: 6 * time.Second}
@@ -28,19 +27,10 @@ type subscriptionCacheEntry struct {
 	fetchedAt time.Time
 }
 
-type subscriptionFetch struct {
-	done  chan struct{}
-	links []string
-}
-
 var subscriptionCache = struct {
 	sync.Mutex
-	m        map[string]subscriptionCacheEntry
-	inflight map[string]*subscriptionFetch
-}{
-	m:        make(map[string]subscriptionCacheEntry),
-	inflight: make(map[string]*subscriptionFetch),
-}
+	m map[string]subscriptionCacheEntry
+}{m: make(map[string]subscriptionCacheEntry)}
 
 // fetchSubscriptionLinks returns the share links contained in a remote
 // subscription URL, using a short-lived cache. On any failure it returns the
@@ -54,59 +44,24 @@ func fetchSubscriptionLinks(rawURL string) []string {
 
 	subscriptionCache.Lock()
 	cached, ok := subscriptionCache.m[rawURL]
+	subscriptionCache.Unlock()
 	if ok && time.Since(cached.fetchedAt) < subscriptionCacheTTL {
-		subscriptionCache.Unlock()
 		return cached.links
 	}
-	if fetch, waiting := subscriptionCache.inflight[rawURL]; waiting {
-		subscriptionCache.Unlock()
-		<-fetch.done
-		return fetch.links
-	}
-	fetch := &subscriptionFetch{done: make(chan struct{})}
-	subscriptionCache.inflight[rawURL] = fetch
-	subscriptionCache.Unlock()
-	defer func() {
-		subscriptionCache.Lock()
-		close(fetch.done)
-		delete(subscriptionCache.inflight, rawURL)
-		subscriptionCache.Unlock()
-	}()
 
 	links, err := doFetchSubscriptionLinks(rawURL)
 	if err != nil {
+		// Serve stale on error rather than dropping the client's configs.
 		if ok {
-			fetch.links = cached.links
+			return cached.links
 		}
-		return fetch.links
+		return nil
 	}
 
 	subscriptionCache.Lock()
 	subscriptionCache.m[rawURL] = subscriptionCacheEntry{links: links, fetchedAt: time.Now()}
-	trimSubscriptionCacheLocked(rawURL)
 	subscriptionCache.Unlock()
-	fetch.links = links
-	return fetch.links
-}
-
-func trimSubscriptionCacheLocked(keep string) {
-	for len(subscriptionCache.m) > subscriptionCacheCapacity {
-		var oldestURL string
-		var oldest time.Time
-		for rawURL, entry := range subscriptionCache.m {
-			if rawURL == keep {
-				continue
-			}
-			if oldestURL == "" || entry.fetchedAt.Before(oldest) {
-				oldestURL = rawURL
-				oldest = entry.fetchedAt
-			}
-		}
-		if oldestURL == "" {
-			return
-		}
-		delete(subscriptionCache.m, oldestURL)
-	}
+	return links
 }
 
 func doFetchSubscriptionLinks(rawURL string) ([]string, error) {

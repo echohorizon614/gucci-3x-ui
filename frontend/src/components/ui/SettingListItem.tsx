@@ -5,7 +5,6 @@ import './SettingListItem.css';
 interface SettingListItemProps {
   paddings?: 'small' | 'default';
   title?: ReactNode;
-  badge?: ReactNode;
   description?: ReactNode;
   children?: ReactNode;
   control?: ReactNode;
@@ -14,7 +13,6 @@ interface SettingListItemProps {
 export default function SettingListItem({
   paddings = 'default',
   title,
-  badge,
   description,
   children,
   control,
@@ -30,12 +28,7 @@ export default function SettingListItem({
       <Row gutter={[8, 16]} style={{ width: '100%' }}>
         <Col xs={24} lg={12}>
           <div className="setting-list-meta">
-            {title && (
-              <div className="setting-list-title">
-                <span id={titleId}>{title}</span>
-                {badge}
-              </div>
-            )}
+            {title && <div className="setting-list-title" id={titleId}>{title}</div>}
             {description && <div className="setting-list-description">{description}</div>}
           </div>
         </Col>

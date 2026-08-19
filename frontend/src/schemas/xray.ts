@@ -78,15 +78,6 @@ export const OutboundTestResultSchema = z.object({
       }).loose(),
     )
     .optional(),
-  egress: z
-    .object({
-      ipv4: z.string().optional(),
-      ipv6: z.string().optional(),
-      country: z.string().optional(),
-      warp: z.string().optional(),
-    })
-    .loose()
-    .optional(),
 }).loose();
 
 // Batch results from /xray/testOutbounds, aligned with the request order.
@@ -110,10 +101,7 @@ export const RuleFormSchema = z.object({
 });
 
 export const BalancerFormSchema = z.object({
-  tag: z.string().trim().min(1, 'pages.xray.balancerTagRequired').refine(
-    (val) => !val.startsWith('_bl_'),
-    { message: 'pages.xray.balancer.reservedPrefix' },
-  ),
+  tag: z.string().trim().min(1, 'pages.xray.balancerTagRequired'),
   strategy: BalancerStrategyTypeSchema.default('random'),
   selector: z.array(z.string()).min(1, 'pages.xray.balancerSelectorRequired'),
   fallbackTag: z.string().default(''),
@@ -123,11 +111,7 @@ export const BalancerFormSchema = z.object({
 export const OutboundTagSchema = z
   .string()
   .trim()
-  .min(1, 'pages.xray.outboundTagRequired')
-  .refine(
-    (val) => !val.startsWith('_bl_'),
-    { message: 'pages.xray.balancer.reservedPrefix' },
-  );
+  .min(1, 'pages.xray.outboundTagRequired');
 
 export type BalancerFormValues = z.infer<typeof BalancerFormSchema>;
 export type RuleFormValues = z.infer<typeof RuleFormSchema>;

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Button,
@@ -38,7 +38,6 @@ import {
 } from '@ant-design/icons';
 
 import { HttpUtil } from '@/utils';
-import { onNumber } from '@/utils/onNumber';
 import PromptModal from '@/components/feedback/PromptModal';
 import TextModal from '@/components/feedback/TextModal';
 
@@ -46,12 +45,10 @@ import OutboundFormModal from './OutboundFormModal';
 import { propagateOutboundTagRename } from '../basics/helpers';
 import { planOutboundDeletion, applyOutboundDeletion } from '../reference-cleanup';
 import DeletionImpactList from '../DeletionImpactList';
-import { isBalancerLoopbackTag } from '../balancers/balancer-loopback';
-import type { XraySettingsValue, SetTemplate, OutboundTestMode, OutboundTestState, OutboundTrafficRow } from '@/hooks/useXraySetting';
+import type { XraySettingsValue, SetTemplate, OutboundTestState, OutboundTrafficRow } from '@/hooks/useXraySetting';
 import './OutboundsTab.css';
 
 import type { OutboundRow } from './outbounds-tab-types';
-import { originalOutboundIndex } from './outbounds-tab-helpers';
 import { useOutboundColumns } from './useOutboundColumns';
 import OutboundCardList from './OutboundCardList';
 import SubscriptionOutbounds from './SubscriptionOutbounds';
@@ -62,7 +59,6 @@ interface OutboundSub {
   url?: string;
   enabled?: boolean;
   allowPrivate?: boolean;
-  allowInsecure?: boolean;
   prepend?: boolean;
   priority?: number;
   tagPrefix?: string;
@@ -114,7 +110,7 @@ export default function OutboundsTab({
   const { t } = useTranslation();
   const [modal, modalContextHolder] = Modal.useModal();
   const [messageApi, messageContextHolder] = message.useMessage();
-  const [testMode, setTestMode] = useState<OutboundTestMode>('tcp');
+  const [testMode, setTestMode] = useState<'tcp' | 'http'>('tcp');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingOutbound, setEditingOutbound] = useState<Record<string, unknown> | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -124,7 +120,7 @@ export default function OutboundsTab({
   const [subDrawerOpen, setSubDrawerOpen] = useState(false);
   const [subs, setSubs] = useState<OutboundSub[]>([]);
   const [subsLoading, setSubsLoading] = useState(false);
-  const [newSub, setNewSub] = useState({ remark: '', url: '', tagPrefix: '', updateInterval: 600, enabled: true, allowPrivate: false, allowInsecure: false, prepend: false });
+  const [newSub, setNewSub] = useState({ remark: '', url: '', tagPrefix: '', updateInterval: 600, enabled: true, allowPrivate: false, prepend: false });
   const [editingSubId, setEditingSubId] = useState<number | null>(null);
   const [savingSub, setSavingSub] = useState(false);
   const [refreshingId, setRefreshingId] = useState<number | null>(null);
@@ -146,15 +142,7 @@ export default function OutboundsTab({
     [templateSettings?.outbounds],
   );
 
-  const rows = useMemo(
-    () =>
-      outbounds
-        .map((o, i) => ({ ...o, key: i }))
-        .filter((o) => !isBalancerLoopbackTag(o.tag || '')),
-    [outbounds],
-  );
-  const rowsRef = useRef<OutboundRow[]>([]);
-  rowsRef.current = rows;
+  const rows = useMemo(() => outbounds.map((o, i) => ({ ...o, key: i })), [outbounds]);
 
   const dialerProxyTags = useMemo(() => {
     const tags = new Set<string>();
@@ -193,12 +181,11 @@ export default function OutboundsTab({
     loadSubs();
   }
   function openEdit(idx: number) {
-    const target = originalOutboundIndex(rowsRef.current, idx);
-    setEditingOutbound((templateSettings?.outbounds || [])[target] as Record<string, unknown>);
-    setEditingIndex(target);
+    setEditingOutbound((templateSettings?.outbounds || [])[idx] as Record<string, unknown>);
+    setEditingIndex(idx);
     setExistingTags(
       (templateSettings?.outbounds || [])
-        .filter((_, i) => i !== target)
+        .filter((_, i) => i !== idx)
         .map((o) => o?.tag)
         .filter((tg): tg is string => !!tg),
     );
@@ -223,9 +210,8 @@ export default function OutboundsTab({
   }
 
   function confirmDelete(idx: number) {
-    const target = originalOutboundIndex(rowsRef.current, idx);
     const impact = templateSettings
-      ? planOutboundDeletion(templateSettings, target)
+      ? planOutboundDeletion(templateSettings, idx)
       : { rules: [], balancers: [], observatory: false, burst: false };
     modal.confirm({
       title: `${t('delete')} ${t('pages.xray.Outbounds')} #${idx + 1}?`,
@@ -233,33 +219,27 @@ export default function OutboundsTab({
       okText: t('delete'),
       okType: 'danger',
       cancelText: t('cancel'),
-      onOk: () => mutate((tt) => applyOutboundDeletion(tt, target)),
+      onOk: () => mutate((tt) => applyOutboundDeletion(tt, idx)),
     });
   }
   function setFirst(idx: number) {
-    const target = originalOutboundIndex(rowsRef.current, idx);
     mutate((tt) => {
       if (!tt.outbounds) return;
-      const [moved] = tt.outbounds.splice(target, 1);
+      const [moved] = tt.outbounds.splice(idx, 1);
       tt.outbounds.unshift(moved);
     });
   }
   function moveUp(idx: number) {
     if (idx <= 0) return;
-    const target = originalOutboundIndex(rowsRef.current, idx);
-    const prev = originalOutboundIndex(rowsRef.current, idx - 1);
     mutate((tt) => {
       if (!tt.outbounds) return;
-      [tt.outbounds[prev], tt.outbounds[target]] = [tt.outbounds[target], tt.outbounds[prev]];
+      [tt.outbounds[idx - 1], tt.outbounds[idx]] = [tt.outbounds[idx], tt.outbounds[idx - 1]];
     });
   }
   function moveDown(idx: number) {
-    if (idx >= rowsRef.current.length - 1) return;
-    const target = originalOutboundIndex(rowsRef.current, idx);
-    const next = originalOutboundIndex(rowsRef.current, idx + 1);
     mutate((tt) => {
-      if (!tt.outbounds) return;
-      [tt.outbounds[next], tt.outbounds[target]] = [tt.outbounds[target], tt.outbounds[next]];
+      if (!tt.outbounds || idx >= tt.outbounds.length - 1) return;
+      [tt.outbounds[idx + 1], tt.outbounds[idx]] = [tt.outbounds[idx], tt.outbounds[idx + 1]];
     });
   }
 
@@ -305,7 +285,7 @@ export default function OutboundsTab({
       setSubsLoading(false);
     }
   }
-  function subBody(src: { remark?: string; url?: string; tagPrefix?: string; updateInterval?: number; enabled?: boolean; allowPrivate?: boolean; allowInsecure?: boolean; prepend?: boolean }) {
+  function subBody(src: { remark?: string; url?: string; tagPrefix?: string; updateInterval?: number; enabled?: boolean; allowPrivate?: boolean; prepend?: boolean }) {
     return {
       remark: src.remark ?? '',
       url: src.url ?? '',
@@ -313,12 +293,11 @@ export default function OutboundsTab({
       updateInterval: src.updateInterval ?? 600,
       enabled: src.enabled ?? true,
       allowPrivate: src.allowPrivate ?? false,
-      allowInsecure: src.allowInsecure ?? false,
       prepend: src.prepend ?? false,
     };
   }
   function resetSubForm() {
-    setNewSub({ remark: '', url: '', tagPrefix: '', updateInterval: 600, enabled: true, allowPrivate: false, allowInsecure: false, prepend: false });
+    setNewSub({ remark: '', url: '', tagPrefix: '', updateInterval: 600, enabled: true, allowPrivate: false, prepend: false });
     setEditingSubId(null);
     setPreviewData(null);
   }
@@ -330,7 +309,6 @@ export default function OutboundsTab({
       updateInterval: sub.updateInterval ?? 600,
       enabled: sub.enabled ?? true,
       allowPrivate: sub.allowPrivate ?? false,
-      allowInsecure: sub.allowInsecure ?? false,
       prepend: sub.prepend ?? false,
     });
     setEditingSubId(sub.id);
@@ -508,7 +486,6 @@ export default function OutboundsTab({
                 <Radio.Group value={testMode} onChange={(e) => setTestMode(e.target.value)} buttonStyle="solid" size="small">
                   <Radio.Button value="tcp">TCP</Radio.Button>
                   <Radio.Button value="http">HTTP</Radio.Button>
-                  <Radio.Button value="real">{t('pages.xray.outbound.modeRealDelay')}</Radio.Button>
                 </Radio.Group>
               </Tooltip>
               <Button type="primary" loading={testingAll} icon={<PlayCircleOutlined />} onClick={() => onTestAll(testMode)}>
@@ -627,14 +604,14 @@ export default function OutboundsTab({
                   <InputNumber
                     min={0}
                     value={intervalHours}
-                    onChange={onNumber((v) => setIntervalHM(v, intervalMinutes))}
+                    onChange={(v) => setIntervalHM(Number(v) || 0, intervalMinutes)}
                     style={{ width: 80 }}
                   /> {t('pages.xray.outboundSub.hours')}
                   <InputNumber
                     min={0}
                     max={59}
                     value={intervalMinutes}
-                    onChange={onNumber((v) => setIntervalHM(intervalHours, v))}
+                    onChange={(v) => setIntervalHM(intervalHours, Number(v) || 0)}
                     style={{ width: 80 }}
                   /> {t('pages.xray.outboundSub.minutes')}
                 </Space>
@@ -649,12 +626,6 @@ export default function OutboundsTab({
                 <Switch checked={newSub.allowPrivate} onChange={(v) => setNewSub({ ...newSub, allowPrivate: v })} />
                 <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
                   {t('pages.xray.outboundSub.allowPrivateHint')}
-                </div>
-              </Form.Item>
-              <Form.Item label={t('pages.hosts.fields.allowInsecure')}>
-                <Switch checked={newSub.allowInsecure} onChange={(v) => setNewSub({ ...newSub, allowInsecure: v })} />
-                <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-                  {t('pages.hosts.hints.allowInsecure')}
                 </div>
               </Form.Item>
               <Form.Item label={t('pages.xray.outboundSub.prepend')}>

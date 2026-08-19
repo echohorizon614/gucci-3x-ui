@@ -25,8 +25,10 @@ jobs:
           grep -q '/gucci-assets/gucci-bg.webp' gucci/landing/index.html
           grep -q 'location /gucci-connect/ws' gucci/nginx.conf.template
           grep -q 'no-store, no-cache, must-revalidate' gucci/nginx.conf.template
+          grep -q 'GUCCI_PANEL_VERSION=3.4.2' Dockerfile.railway
           grep -q 'XUI_DATA_ROOT=/GUCCI' Dockerfile.railway
           grep -q 'XUI_DB_FOLDER=/GUCCI/x-ui' Dockerfile.railway
+          grep -q 'pre-v3.4.2-transition.db' gucci/entrypoint.sh
           grep -q 'XUI_DATA_ROOT:-/GUCCI' gucci/entrypoint.sh
           grep -q '<span className="brand-text">GUCCI</span>' frontend/src/layouts/AppSidebar.tsx
           grep -q '<span className="drawer-brand">GUCCI</span>' frontend/src/layouts/AppSidebar.tsx
@@ -35,6 +37,8 @@ jobs:
           test -s gucci/landing/assets/gucci-bg.webp
           test -s gucci/landing/assets/favicon.svg
           test $(wc -c < gucci/landing/index.html) -lt 50000
+          grep -qx 'v3.4.2' UPSTREAM_VERSION
+          grep -qx '3.4.2' internal/config/version
           grep -q 'node:24-alpine AS frontend' Dockerfile.railway
           grep -q 'golang:1.26-alpine AS builder' Dockerfile.railway
           grep -q 'XRAY_COMPAT_VERSION=v26.6.27' Dockerfile.railway
@@ -42,9 +46,14 @@ jobs:
       - name: Audit frontend dependencies
         working-directory: frontend
         run: npm audit --audit-level=low
-      - name: Audit documentation dependencies
+      - name: Audit documentation dependencies when present
         working-directory: docs
-        run: npx -y pnpm@11.15.1 audit --audit-level=low
+        run: |
+          if [ -f package.json ]; then
+            npx -y pnpm@11.15.1 audit --audit-level=low
+          else
+            echo 'v3.4.2 has no Node-based documentation application'
+          fi
       - name: Build Railway image from full source
         run: docker build -f Dockerfile.railway -t gucci-3x-ui:test .
       - name: Verify the v3.4.2-compatible runtime core
