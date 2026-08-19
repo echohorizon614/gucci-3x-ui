@@ -108,7 +108,15 @@ echo "GUCCI gateway listening on public port ${PUBLIC_PORT} and Railway port ${H
 nginx -t -c /tmp/nginx.conf
 nginx -c /tmp/nginx.conf -g 'daemon off;' &
 NGINX_PID=$!
-trap 'kill "$NGINX_PID" 2>/dev/null || true' INT TERM EXIT
+XUI_PID=""
+HEALTH_PID=""
+cleanup() {
+  [ -z "$HEALTH_PID" ] || kill "$HEALTH_PID" 2>/dev/null || true
+  [ -z "$XUI_PID" ] || kill "$XUI_PID" 2>/dev/null || true
+  kill "$NGINX_PID" 2>/dev/null || true
+  rm -f /tmp/gucci-health-ok /tmp/gucci-health-ok.new
+}
+trap cleanup INT TERM EXIT
 
 export XUI_PORT="$PANEL_PORT"
 export XUI_INIT_WEB_BASE_PATH="$PANEL_PATH"
@@ -121,13 +129,19 @@ mkdir -p /var/log
 : > /var/log/secure
 : > /var/log/messages
 
-# Run the untouched upstream panel as PID 1 child. Railway health checks Nginx;
-# if x-ui exits, this script exits and Railway restarts the service.
+# Run the untouched upstream panel and continuously verify the panel plus any
+# configured TCP Proxy target ports. Repeated failures stop x-ui so Railway's
+# restart policy can replace the unhealthy endpoint automatically.
 /app/DockerEntrypoint.sh &
 XUI_PID=$!
-trap 'kill "$NGINX_PID" 2>/dev/null || true' INT TERM EXIT
+/app/gucci/healthcheck.sh "$XUI_PID" "$PANEL_PORT" &
+HEALTH_PID=$!
+set +e
 wait "$XUI_PID"
 STATUS=$?
-kill "$NGINX_PID" 2>/dev/null || true
+set -e
+cleanup
+trap - INT TERM EXIT
+wait "$HEALTH_PID" 2>/dev/null || true
 wait "$NGINX_PID" 2>/dev/null || true
 exit "$STATUS"

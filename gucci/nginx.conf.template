@@ -29,7 +29,14 @@ http {
     absolute_redirect off;
     include /app/gucci/security-headers.conf;
 
-    location = /healthz { access_log off; default_type text/plain; return 200 'ok\n'; }
+    # Healthy only after x-ui and the configured TCP endpoints are listening.
+    # The watchdog atomically creates this marker and removes it on failure.
+    location = /healthz {
+      access_log off;
+      default_type text/plain;
+      root /tmp;
+      try_files /gucci-health-ok =503;
+    }
     location = /favicon.ico {
       alias /app/gucci/landing/assets/favicon.svg;
       default_type image/svg+xml;

@@ -29,7 +29,7 @@ WORKDIR /app
 ARG XRAY_COMPAT_VERSION=v26.6.27
 ARG XRAY_COMPAT_SHA256=b3e5902d06d6282fe53cfa2fc426058b9aeaa429b2c812e20887cd47f26d08bf
 RUN apk add --no-cache \
-      ca-certificates tzdata fail2ban bash curl openssl nginx sqlite unzip \
+      ca-certificates tzdata fail2ban bash curl openssl nginx netcat-openbsd sqlite unzip \
     && rm -f /etc/fail2ban/jail.d/alpine-ssh.conf \
     && cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local \
     && sed -i "s/^\[ssh\]$/&\nenabled = false/" /etc/fail2ban/jail.local \
@@ -50,7 +50,8 @@ RUN curl -fsSL --retry 3 -o /tmp/xray.zip \
     && unzip -p /tmp/xray.zip xray > /app/bin/xray-linux-amd64 \
     && chmod 0755 /app/bin/xray-linux-amd64 \
     && rm -f /tmp/xray.zip \
-    && chmod 0755 /app/DockerEntrypoint.sh /app/x-ui /usr/bin/x-ui /app/gucci/entrypoint.sh
+    && chmod 0755 /app/DockerEntrypoint.sh /app/x-ui /usr/bin/x-ui \
+         /app/gucci/entrypoint.sh /app/gucci/healthcheck.sh
 
 ENV XUI_IN_DOCKER=true \
     XUI_MAIN_FOLDER=/app \
