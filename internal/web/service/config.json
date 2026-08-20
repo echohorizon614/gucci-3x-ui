@@ -81,20 +81,6 @@
       },
       {
         "ip": [
-          "geoip:ir"
-        ],
-        "outboundTag": "direct",
-        "type": "field"
-      },
-      {
-        "domain": [
-          "geosite:ir"
-        ],
-        "outboundTag": "direct",
-        "type": "field"
-      },
-      {
-        "ip": [
           "geoip:private"
         ],
         "outboundTag": "blocked",
