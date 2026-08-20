@@ -142,6 +142,44 @@ if [ -f "$DB" ]; then
   fi
 fi
 
+# Railway's edge only forwards HTTP/HTTPS on 443, so a raw-TCP inbound (Reality
+# on a high port) can never be reached from the internet. Seed a VLESS+WebSocket
+# inbound on loopback:1235 -- the port nginx bridges from /gucci-connect/ws --
+# plus a host row so generated links advertise https://<domain>:443. Idempotent:
+# skipped once an inbound already listens on 1235.
+if [ -f "$DB" ] && [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
+  WS_EXISTS=$(sqlite3 "$DB" "SELECT COUNT(*) FROM inbounds WHERE port=1235;" 2>/dev/null || echo 1)
+  if [ "$WS_EXISTS" = "0" ]; then
+    WS_UUID=$(cat /proc/sys/kernel/random/uuid)
+    WS_SUBID=$(printf '%s' "$WS_UUID" | tr -d '-' | cut -c1-16)
+    WS_DOMAIN=$(printf '%s' "$RAILWAY_PUBLIC_DOMAIN" | sed "s/'/''/g")
+    sqlite3 "$DB" "
+      INSERT INTO inbounds (user_id, up, down, total, remark, sub_sort_index, enable, expiry_time,
+                            traffic_reset, traffic_reset_day, last_traffic_reset_time,
+                            listen, port, protocol, settings, stream_settings, tag, sniffing,
+                            share_addr_strategy, share_addr)
+      VALUES (1, 0, 0, 0, 'railway-ws-443', 1, 1, 0, 'never', 1, 0,
+              '127.0.0.1', 1235, 'vless',
+              json_object('clients', json_array(json_object(
+                  'id','${WS_UUID}','email','railway-ws-01','flow','','limitIp',0,'totalGB',0,
+                  'speedLimit',0,'multiplier',1,'expiryTime',0,'enable',json('true'),'tgId',0,
+                  'subId','${WS_SUBID}','comment','','reset',0)),
+                'decryption','none','fallbacks', json_array()),
+              json_object('network','ws','security','none',
+                'wsSettings', json_object('path','/gucci-connect/ws','host','${WS_DOMAIN}','headers',json_object())),
+              'in-1235-ws',
+              json_object('enabled', json('false'), 'destOverride', json_array('http','tls')),
+              'node','');
+      INSERT INTO client_traffics (inbound_id, enable, email, up, down, expiry_time, total, reset, last_online)
+      SELECT id, 1, 'railway-ws-01', 0, 0, 0, 0, 0, 0 FROM inbounds WHERE port=1235;
+      INSERT INTO hosts (group_id, inbound_id, sort_order, remark, address, port, security, sni, host_header, path, alpn, fingerprint)
+      SELECT lower(hex(randomblob(8))), id, 0, 'railway-edge', '${WS_DOMAIN}', 443, 'tls', '${WS_DOMAIN}', '${WS_DOMAIN}',
+             '/gucci-connect/ws', json_array('http/1.1'), 'chrome' FROM inbounds WHERE port=1235;
+    " && echo "GUCCI: seeded VLESS+WS inbound on 1235 bridged to https://${RAILWAY_PUBLIC_DOMAIN}:443" \
+      || echo "GUCCI: WS inbound seeding skipped (schema mismatch)"
+  fi
+fi
+
 if [ "$HEALTH_PORT" = "$PUBLIC_PORT" ]; then
   EXTRA_LISTEN=""
 else
