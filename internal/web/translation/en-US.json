@@ -850,7 +850,9 @@
       "speedLimit": "Speed Limit (Mbps)",
       "speedLimitDesc": "Per-client bandwidth cap in Mbps, enforced in Clash/Mihomo subscriptions. 0 = unlimited.",
       "multiplier": "Traffic Multiplier (×)",
-      "multiplierDesc": "Each MB the client uses counts as Multiplier × MB. 1 = no multiplier. 2 = each 1MB counts as 2MB (useful for sub-accounts or to compensate compression). Min 1, max 1000000."
+      "multiplierDesc": "Each MB the client uses counts as Multiplier × MB. 1 = no multiplier. 2 = each 1MB counts as 2MB (useful for sub-accounts or to compensate compression). Min 1, max 1000000.",
+      "trafficMultiplier": "Traffic Multiplier",
+      "trafficMultiplierDesc": "Multiplier applied to recorded traffic (1.0 = exact). e.g. 10 means 1 MB real = 10 MB counted."
     },
     "groups": {
       "name": "Name",
