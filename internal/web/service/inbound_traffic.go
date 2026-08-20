@@ -143,6 +143,17 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 			trafficByEmail[traffics[i].Email] = traffics[i]
 		}
 	}
+
+	// Traffic Multiplier: apply each client's per-client multiplier to the
+	// delta bytes reported by xray-core before persisting, so every downstream
+	// consumer — UI totals, subscriptions, the disable-on-quota check — sees
+	// the same accounting. Clients absent from the table (deleted/detached)
+	// fall back to 1×; the helper clamps below to be defensive against bad rows.
+	multiplierByEmail, err := s.clientMultiplierByEmail(tx, emails)
+	if err != nil {
+		return err
+	}
+
 	now := time.Now().UnixMilli()
 	// Use atomic per-row UPDATE instead of read-modify-write Save. tx.Save
 	// issues UPDATEs in slice order, which varies between concurrent callers;
@@ -154,6 +165,12 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 		if !ok || (t.Up == 0 && t.Down == 0) {
 			continue
 		}
+		mult := multiplierByEmail[ct.Email]
+		if mult < 1 {
+			mult = 1
+		}
+		upScaled := t.Up * mult
+		downScaled := t.Down * mult
 		if err = tx.Exec(
 			fmt.Sprintf(
 				`UPDATE client_traffics SET up = %s, down = %s, last_online = %s WHERE email = ?`,
@@ -161,7 +178,7 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 				database.ClampedAddExpr("down"),
 				database.GreatestExpr("last_online", "?"),
 			),
-			t.Up, t.Down, now, ct.Email,
+			upScaled, downScaled, now, ct.Email,
 		).Error; err != nil {
 			logger.Warning("AddClientTraffic update data ", err)
 		}
@@ -182,6 +199,40 @@ func (s *InboundService) addClientTraffic(tx *gorm.DB, traffics []*xray.ClientTr
 	}
 
 	return nil
+}
+
+// clientMultiplierByEmail returns each client's Traffic Multiplier (default 1)
+// from the clients table. The traffic job applies these to delta bytes reported
+// by xray-core before persisting, so every downstream consumer sees the same
+// accounting. A 0 or negative multiplier (manual DB edit / legacy import) is
+// clamped to 1; values above 1000000 are clamped down to keep a typo from
+// ballooning a user's bill by 1e9.
+func (s *InboundService) clientMultiplierByEmail(tx *gorm.DB, emails []string) (map[string]int64, error) {
+	if len(emails) == 0 {
+		return map[string]int64{}, nil
+	}
+	type row struct {
+		Email      string `gorm:"column:email"`
+		Multiplier int64  `gorm:"column:multiplier"`
+	}
+	rows := make([]row, 0, len(emails))
+	if err := tx.Model(model.ClientRecord{}).
+		Select("email", "multiplier").
+		Where("email IN ?", emails).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	out := make(map[string]int64, len(rows))
+	for _, r := range rows {
+		if r.Multiplier < 1 {
+			r.Multiplier = 1
+		}
+		if r.Multiplier > 1000000 {
+			r.Multiplier = 1000000
+		}
+		out[r.Email] = r.Multiplier
+	}
+	return out, nil
 }
 
 func (s *InboundService) adjustTraffics(tx *gorm.DB, dbClientTraffics []*xray.ClientTraffic) ([]*xray.ClientTraffic, map[string]int64, error) {

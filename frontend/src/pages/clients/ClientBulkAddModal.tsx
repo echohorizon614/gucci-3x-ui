@@ -35,6 +35,7 @@ const EMPTY: ClientBulkAddFormValues = {
   limitIp: 0,
   totalGB: 0,
   speedLimit: 0,
+  multiplier: 1,
   expiryTime: 0,
   reset: 0,
   inboundIds: [],
@@ -175,6 +176,7 @@ export default function ClientBulkAddModal({
           flow: showFlow ? (current.flow || '') : '',
           totalGB: Math.round((current.totalGB || 0) * SizeFormatter.ONE_GB),
           speedLimit: Number(current.speedLimit) || 0,
+          multiplier: Number(current.multiplier) || 1,
           expiryTime: current.expiryTime,
           reset: Number(current.reset) || 0,
           limitIp: Number(current.limitIp) || 0,
@@ -335,6 +337,10 @@ export default function ClientBulkAddModal({
 
             <FormField name="speedLimit" label={t('pages.clients.speedLimit')} tooltip={t('pages.clients.speedLimitDesc')} transform={{ output: (v) => Number(v) || 0 }}>
               <InputNumber min={0} step={1} />
+            </FormField>
+
+            <FormField name="multiplier" label={t('pages.clients.multiplier')} tooltip={t('pages.clients.multiplierDesc')} transform={{ output: (v) => Math.max(1, Math.floor(Number(v) || 1)) }}>
+              <InputNumber min={1} max={1000000} step={1} precision={0} />
             </FormField>
 
             <Form.Item label={t('pages.clients.delayedStart')}>

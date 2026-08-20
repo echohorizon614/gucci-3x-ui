@@ -117,6 +117,7 @@ const EMPTY: Values = {
   reverseTag: '',
   totalGB: 0,
   speedLimit: 0,
+  multiplier: 1,
   expiryDate: 0,
   delayedStart: false,
   delayedDays: 0,
@@ -233,6 +234,7 @@ export default function ClientFormModal({
         reverseTag: client.reverse?.tag || '',
         totalGB: bytesToGB(client.totalGB || 0),
         speedLimit: Number(client.speedLimit) || 0,
+        multiplier: Number(client.multiplier) || 1,
         reset: Number(client.reset) || 0,
         limitIp: client.limitIp || 0,
         tgId: Number(client.tgId) || 0,
@@ -490,6 +492,7 @@ export default function ClientFormModal({
       reverseTag: values.reverseTag,
       totalGB: values.totalGB,
       speedLimit: values.speedLimit,
+      multiplier: values.multiplier,
       delayedStart: values.delayedStart,
       delayedDays: values.delayedDays,
       reset: values.reset,
@@ -519,6 +522,7 @@ export default function ClientFormModal({
       security: showSecurity ? (values.security || 'auto') : 'auto',
       totalGB: totalBytes,
       speedLimit: Number(values.speedLimit) || 0,
+      multiplier: Number(values.multiplier) || 1,
       expiryTime,
       reset: Number(values.reset) || 0,
       limitIp: Number(values.limitIp) || 0,
@@ -669,6 +673,16 @@ export default function ClientFormModal({
                             transform={{ output: (v) => Number(v) || 0 }}
                           >
                             <InputNumber min={0} step={1} style={{ width: '100%' }} />
+                          </FormField>
+                        </Col>
+                        <Col xs={24} md={6}>
+                          <FormField
+                            name="multiplier"
+                            label={t('pages.clients.multiplier')}
+                            tooltip={t('pages.clients.multiplierDesc')}
+                            transform={{ output: (v) => Math.max(1, Math.floor(Number(v) || 1)) }}
+                          >
+                            <InputNumber min={1} max={1000000} step={1} precision={0} style={{ width: '100%' }} />
                           </FormField>
                         </Col>
                         <Col xs={24} md={6}>

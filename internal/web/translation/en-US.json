@@ -848,7 +848,9 @@
         "importedMixed": "{ok} imported, {failed} skipped"
       },
       "speedLimit": "Speed Limit (Mbps)",
-      "speedLimitDesc": "Per-client bandwidth cap in Mbps, enforced in Clash/Mihomo subscriptions. 0 = unlimited."
+      "speedLimitDesc": "Per-client bandwidth cap in Mbps, enforced in Clash/Mihomo subscriptions. 0 = unlimited.",
+      "multiplier": "Traffic Multiplier (×)",
+      "multiplierDesc": "Each MB the client uses counts as Multiplier × MB. 1 = no multiplier. 2 = each 1MB counts as 2MB (useful for sub-accounts or to compensate compression). Min 1, max 1000000."
     },
     "groups": {
       "name": "Name",
