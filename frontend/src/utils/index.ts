@@ -964,11 +964,24 @@ export class IntlUtil {
     if (date == null) return '';
     if (!isFinite(date)) return '';
     const language = LanguageManager.getLanguage();
-    const now = new Date();
-    const diff = date < 0
-      ? Math.round(date / (1000 * 60 * 60 * 24))
-      : Math.round((date - now.getTime()) / (1000 * 60 * 60 * 24));
     const formatter = new Intl.RelativeTimeFormat(language, { numeric: 'auto' });
-    return formatter.format(diff, 'day');
+    const diffMs = date - Date.now(); // >0 future, <0 past
+
+    const absMs = Math.abs(diffMs);
+    const secs = absMs / 1000;
+
+    // Fresh — render as "now" / "الان" instead of a fuzzy unit.
+    if (secs < 10) return formatter.format(0, 'second');
+
+    // Pick the finest unit that still resolves to at least 1, then let
+    // Intl.RelativeTimeFormat round and localize (e.g. "5 minutes ago",
+    // "در ۵ دقیقه", "yesterday", "دیروز", "3 months ago").
+    if (secs < 60) return formatter.format(Math.round(diffMs / 1000), 'second');
+    if (secs < 3600) return formatter.format(Math.round(diffMs / 60_000), 'minute');
+    if (secs < 86_400) return formatter.format(Math.round(diffMs / 3_600_000), 'hour');
+    if (secs < 604_800) return formatter.format(Math.round(diffMs / 86_400_000), 'day');
+    if (secs < 2_592_000) return formatter.format(Math.round(diffMs / 604_800_000), 'week');
+    if (secs < 31_536_000) return formatter.format(Math.round(diffMs / 2_592_000_000), 'month');
+    return formatter.format(Math.round(diffMs / 31_536_000_000), 'year');
   }
 }

@@ -8,15 +8,17 @@
     ],
     "tag": "api"
   },
-  "inbounds": [{
-    "listen": "127.0.0.1",
-    "port": 62789,
-    "protocol": "tunnel",
-    "settings": {
-      "rewriteAddress": "127.0.0.1"
-    },
-    "tag": "api"
-  }],
+  "inbounds": [
+    {
+      "listen": "127.0.0.1",
+      "port": 62789,
+      "protocol": "tunnel",
+      "settings": {
+        "rewriteAddress": "127.0.0.1"
+      },
+      "tag": "api"
+    }
+  ],
   "log": {
     "access": "none",
     "dnsLog": false,
@@ -28,13 +30,21 @@
     "listen": "127.0.0.1:11111",
     "tag": "metrics_out"
   },
-  "outbounds": [{
+  "outbounds": [
+    {
       "protocol": "freedom",
       "settings": {
         "domainStrategy": "AsIs",
         "finalRules": [
-          { "action": "block", "ip": ["geoip:private"] },
-          { "action": "allow" }
+          {
+            "action": "block",
+            "ip": [
+              "geoip:private"
+            ]
+          },
+          {
+            "action": "allow"
+          }
         ]
       },
       "tag": "direct"
@@ -61,11 +71,26 @@
   },
   "routing": {
     "domainStrategy": "AsIs",
-    "rules": [{
+    "rules": [
+      {
         "inboundTag": [
           "api"
         ],
         "outboundTag": "api",
+        "type": "field"
+      },
+      {
+        "ip": [
+          "geoip:ir"
+        ],
+        "outboundTag": "direct",
+        "type": "field"
+      },
+      {
+        "domain": [
+          "geosite:ir"
+        ],
+        "outboundTag": "direct",
         "type": "field"
       },
       {

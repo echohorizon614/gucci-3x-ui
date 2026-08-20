@@ -846,7 +846,9 @@
         "delOrphans": "{count} کلاینت بدون اینباند حذف شد",
         "imported": "{count} کلاینت وارد شد",
         "importedMixed": "{ok} وارد شد، {failed} رد شد"
-      }
+      },
+      "speedLimit": "محدودیت سرعت (مگابیت/ثانیه)",
+      "speedLimitDesc": "سقف پهنای باند هر کلاینت بر حسب مگابیت/ثانیه، در سابسکریپشن Clash/Mihomo اعمال می‌شود. ۰ = نامحدود"
     },
     "groups": {
       "name": "نام",

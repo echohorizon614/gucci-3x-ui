@@ -36,6 +36,7 @@ import NodeHistoryPanel from './NodeHistoryPanel';
 import type { NodeRecord } from '@/api/queries/useNodesQuery';
 import { isPanelUpdateAvailable } from '@/lib/panel-version';
 import { activateOnKey } from '@/utils/a11y';
+import { IntlUtil } from '@/utils';
 import './NodeList.css';
 
 interface NodeListProps {
@@ -150,12 +151,9 @@ function useRelativeTime() {
   const { t } = useTranslation();
   return (unixSeconds?: number) => {
     if (!unixSeconds) return t('pages.nodes.never');
-    const diffSec = Math.max(0, Math.floor(Date.now() / 1000 - unixSeconds));
-    if (diffSec < 5) return t('pages.nodes.justNow');
-    if (diffSec < 60) return `${diffSec}s`;
-    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m`;
-    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h`;
-    return `${Math.floor(diffSec / 86400)}d`;
+    const lastSeen = unixSeconds * 1000;
+    if (Date.now() - lastSeen < 10_000) return t('pages.nodes.justNow');
+    return IntlUtil.formatRelativeTime(lastSeen);
   };
 }
 

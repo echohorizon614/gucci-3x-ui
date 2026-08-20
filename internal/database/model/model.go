@@ -873,6 +873,7 @@ type Client struct {
 	Email        string         `json:"email"`                        // Client email identifier
 	LimitIP      int            `json:"limitIp"`                      // IP limit for this client
 	TotalGB      int64          `json:"totalGB" form:"totalGB"`       // Total traffic limit in GB
+	SpeedLimit   int64          `json:"speedLimit" form:"speedLimit"` // Per-client speed limit in Mbps (0 = unlimited)
 	ExpiryTime   int64          `json:"expiryTime" form:"expiryTime"` // Expiration timestamp
 	Enable       bool           `json:"enable" form:"enable"`         // Whether the client is enabled
 	TgID         int64          `json:"tgId" form:"tgId"`             // Telegram user ID for notifications
@@ -903,6 +904,7 @@ type ClientRecord struct {
 	AdTag        string `json:"adTag" gorm:"column:ad_tag;default:''"`
 	LimitIP      int    `json:"limitIp" gorm:"column:limit_ip"`
 	TotalGB      int64  `json:"totalGB" gorm:"column:total_gb"`
+	SpeedLimit   int64  `json:"speedLimit" gorm:"column:speed_limit;default:0"`
 	ExpiryTime   int64  `json:"expiryTime" gorm:"column:expiry_time"`
 	Enable       bool   `json:"enable" gorm:"default:true"`
 	TgID         int64  `json:"tgId" gorm:"column:tg_id;index:idx_clients_tg_id"`

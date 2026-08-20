@@ -846,7 +846,9 @@
         "delOrphans": "{count} unattached clients deleted",
         "imported": "{count} clients imported",
         "importedMixed": "{ok} imported, {failed} skipped"
-      }
+      },
+      "speedLimit": "Speed Limit (Mbps)",
+      "speedLimitDesc": "Per-client bandwidth cap in Mbps, enforced in Clash/Mihomo subscriptions. 0 = unlimited."
     },
     "groups": {
       "name": "Name",

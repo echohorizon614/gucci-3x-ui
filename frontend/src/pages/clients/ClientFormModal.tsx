@@ -116,6 +116,7 @@ const EMPTY: Values = {
   security: 'auto',
   reverseTag: '',
   totalGB: 0,
+  speedLimit: 0,
   expiryDate: 0,
   delayedStart: false,
   delayedDays: 0,
@@ -231,6 +232,7 @@ export default function ClientFormModal({
           : client.security,
         reverseTag: client.reverse?.tag || '',
         totalGB: bytesToGB(client.totalGB || 0),
+        speedLimit: Number(client.speedLimit) || 0,
         reset: Number(client.reset) || 0,
         limitIp: client.limitIp || 0,
         tgId: Number(client.tgId) || 0,
@@ -487,6 +489,7 @@ export default function ClientFormModal({
       security: values.security,
       reverseTag: values.reverseTag,
       totalGB: values.totalGB,
+      speedLimit: values.speedLimit,
       delayedStart: values.delayedStart,
       delayedDays: values.delayedDays,
       reset: values.reset,
@@ -515,6 +518,7 @@ export default function ClientFormModal({
       flow: showFlow ? (values.flow || '') : '',
       security: showSecurity ? (values.security || 'auto') : 'auto',
       totalGB: totalBytes,
+      speedLimit: Number(values.speedLimit) || 0,
       expiryTime,
       reset: Number(values.reset) || 0,
       limitIp: Number(values.limitIp) || 0,
@@ -652,6 +656,16 @@ export default function ClientFormModal({
                             name="totalGB"
                             label={t('pages.clients.totalGB')}
                             tooltip={t('pages.clients.totalGBDesc')}
+                            transform={{ output: (v) => Number(v) || 0 }}
+                          >
+                            <InputNumber min={0} step={1} style={{ width: '100%' }} />
+                          </FormField>
+                        </Col>
+                        <Col xs={24} md={6}>
+                          <FormField
+                            name="speedLimit"
+                            label={t('pages.clients.speedLimit')}
+                            tooltip={t('pages.clients.speedLimitDesc')}
                             transform={{ output: (v) => Number(v) || 0 }}
                           >
                             <InputNumber min={0} step={1} style={{ width: '100%' }} />

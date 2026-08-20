@@ -51,7 +51,9 @@ func (s *SubClashService) GetClash(subId string, host string) (string, string, e
 		}
 		for _, client := range clients {
 			seenEmails[client.Email] = struct{}{}
-			proxies = append(proxies, s.getProxies(subReq, inbound, client, host)...)
+			clientProxies := s.getProxies(subReq, inbound, client, host)
+			applyClientSpeedLimit(clientProxies, client.SpeedLimit)
+			proxies = append(proxies, clientProxies...)
 		}
 	}
 	for _, ext := range externalLinks {
@@ -110,6 +112,19 @@ func (s *SubClashService) GetClash(subId string, host string) (string, string, e
 
 	header := fmt.Sprintf("upload=%d; download=%d; total=%d; expire=%d", traffic.Up, traffic.Down, traffic.Total, traffic.ExpiryTime/1000)
 	return string(finalYAML), header, nil
+}
+
+// applyClientSpeedLimit writes the client's speed limit (Mbps) as mihomo's
+// per-proxy "down"/"up" fields so Clash/Mihomo clients enforce a symmetric
+// bandwidth cap. A zero/unset limit leaves the proxies untouched (unlimited).
+func applyClientSpeedLimit(proxies []map[string]any, speedLimitMbps int64) {
+	if speedLimitMbps <= 0 || len(proxies) == 0 {
+		return
+	}
+	for _, proxy := range proxies {
+		proxy["down"] = speedLimitMbps
+		proxy["up"] = speedLimitMbps
+	}
 }
 
 // ensureUniqueProxyNames keeps every proxy "name" non-empty and unique:
